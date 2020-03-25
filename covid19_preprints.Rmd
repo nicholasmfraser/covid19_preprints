@@ -1,6 +1,5 @@
 ---
 title: "R Notebook"
-output: html_notebook
 ---
 
 # Load packages 
@@ -73,9 +72,14 @@ p_covid %>%
   geom_col() +
   labs(x = "Preprints", y = "Posted Date", fill = "Source",
        title = "COVID-19 preprints in bioRxiv and medRxiv") +
+  scale_x_date(date_breaks = "1 week",
+               date_minor_breaks = "1 day",
+               limits = c(ymd("2020-01-01", Sys.Date()))) +
   theme_minimal() +
-  theme(axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
-        axis.title.y = element_text(margin = margin(0, 20, 0, 0)))
+  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+        axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
+        axis.title.y = element_text(margin = margin(0, 20, 0, 0))) +
+  ggsave("outputs/figures/covid19_preprints.png", width = 12, height = 6)
 
 ```
 
