@@ -9,57 +9,132 @@ title: "R Notebook"
 library(tidyverse)
 library(rcrossref)
 library(lubridate)
+library(aRxiv)
 
 ```
 
-# Retrieve data
+# Crossref data
 
 ```{r}
 
-# Details of all preprints published on bioRxiv and medRxiv since 1st December 2019
-# Uses the Crossref member number of CSHL (246) and retrieves all works classified
-# as "posted content", i.e. preprints.
-p_all <- rcrossref::cr_types_(types = "posted-content",
-                              works = TRUE, 
-                              facet = "publisher-name:*", 
-                              filter = c(member = 246, 
-                                       from_posted_date = "2019-12-01", 
-                                       until_posted_date = as.character(Sys.Date())), 
-                              limit = 1000, 
-                              cursor = "*",
-                              parse = TRUE,
-                              cursor_max = 100000)
+# Retrieve details of all preprints posted to Crossref from 2020-01-01 until
+# today. Use the low-level cr_types_ function from rcrossref to return all
+# associated metadata in list format
+cr_p <- cr_types_(types = "posted-content",
+                  works = TRUE, 
+                  facet = "publisher-name:*", 
+                  filter = c(from_posted_date = "2020-01-01", 
+                  until_posted_date = as.character(Sys.Date())), 
+                  limit = 1000, 
+                  cursor = "*",
+                  parse = TRUE,
+                  cursor_max = 100000)
 
-# Parse relevant fields into dataframe
-parsePreprintInfo <- function(item) {
+```
+
+```{r}
+
+# Function for parsing posted dates from crossref metadata
+parsePostedDate <- function(item) {
+  if(length(item$posted$`date-parts`[[1]]) == 3) {
+    return(ymd(str_c(item$posted$`date-parts`[[1]][[1]], "-",
+                            item$posted$`date-parts`[[1]][[2]], "-",
+                            item$posted$`date-parts`[[1]][[3]])))
+  } else {
+    return(NA)
+  }
+}
+
+# Parse relevant fields into dataframe. Keep the 'institution', 'publisher' and
+# 'group-title' fields - these are useful later for matching items to preprint
+# repositories
+parsePreprints <- function(item) {
   tibble(
-    source = item$institution$name,
+    institution = if(length(item$institution$name)) item$institution$name else NA,
+    publisher = item$publisher,
+    group_title = if(length(item$`group-title`)) item$`group-title` else NA,
+    cr_member_id = item$member,
     doi = item$DOI,
     title = item$title[[1]],
-    posted_date = ymd(str_c(item$posted$`date-parts`[[1]][[1]], "-",
-                            item$posted$`date-parts`[[1]][[2]], "-",
-                            item$posted$`date-parts`[[1]][[3]])),
-    abstract = item$abstract
+    posted_date = parsePostedDate(item),
+    abstract = if(length(item$abstract)) item$abstract else NA
   )
 }
 
-p_all_parsed <- map_dfr(p_all, function(x) 
-                               map_dfr(x$message$items, function(y)
-                                                        parsePreprintInfo(y)))
+# Parse preprints info to a dataframe
+cr_p_df <- map_dfr(cr_p, function(x) 
+                         map_dfr(x$message$items, function(y)
+                                                  parsePreprints(y)))
 
 # Generate a search string containing terms related to COVID-19
-search_string <- "coronavirus|wuhan|covid-19|sars-cov|ncov-2019|2019-ncov"
+search_string <- "coronavirus|covid-19|sars-cov|ncov-2019|2019-ncov"
 
 # Subset preprints which mention COVID-19 related terms in title or abstract 
-p_covid <- p_all_parsed %>%
+cr_covid <- cr_p_df %>%
   filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
          str_detect(abstract, regex(search_string, ignore_case = TRUE)))
 
-# Save results to csv
-p_covid %>% write_csv("data/covid19_preprints.csv")
+```
 
-# How many preprints are related to COVID-19 in total?
-p_covid %>% distinct(doi) %>% tally
+```{r}
+
+# Rule-based matching of preprints to repositories. For CSHL repositories, the
+# repository name (bioRxiv/medRxiv) is contained in the 'institution' field. For
+# others we can use the 'publisher' field, except for any preprint servers 
+# hosted on OSF in which we should use the 'group_title' field to ensure we get
+# the right repository.
+cr_covid <- cr_covid %>%
+  mutate(source = case_when(
+    institution == "bioRxiv" ~ "bioRxiv",
+    institution == "medRxiv" ~ "medRxiv",
+    publisher == "Research Square" ~ "Research Square",
+    publisher == "MDPI AG" ~ "Preprints.org",
+    publisher == "American Chemical Society (ACS)" ~ "ChemRxiv",
+    publisher == "JMIR Publications Inc." ~ "JMIR",
+    publisher == "WHO Press" ~ "WHO",
+    publisher == "ScienceOpen" ~ "ScienceOpen",
+    publisher == "SAGE Publications" ~ "SAGE",
+    group_title == "PsyArXiv" ~ "PsyArXiv (OSF)",
+    group_title == "NutriXiv" ~ "NutriXiv (OSF)",
+    group_title == "SocArXiv" ~ "SocArXiv (OSF)",
+    group_title == "EdArXiv" ~ "EdArXiv (OSF)",
+    group_title == "MediArXiv" ~ "MediArXiv (OSF)",
+    group_title == "AfricArXiv" ~ "AfricArXiv (OSF)",
+    group_title == "EarthArXiv" ~ "EarthArXiv (OSF)",
+    group_title == "IndiaRxiv" ~ "IndiaRxiv (OSF)",
+    group_title == "EcoEvoRxiv" ~ "EcoEvoRxiv (OSF)",
+    group_title == "Open Science Framework" ~ "OSF Preprints",
+  )) %>%
+  select(source, doi, posted_date, title, abstract) %>%
+  distinct()
+
+
+```
+
+# arXiv data
+
+```{r}
+
+# For returning details of preprints on arXiv, we can use the aRxiv package and
+# define title and abstract search strings
+ar_covid <- arxiv_search('ti:coronavirus OR ti:covid-19 OR ti:sars-cov OR ti:ncov-2019 OR ti:2019-ncov OR abs:coronavirus OR abs:covid-19 OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov', limit=10000) %>% 
+  mutate(source = "arXiv",
+         arxiv_id = id,
+         posted_date = as_date(submitted)) %>%
+  filter(posted_date >= ymd("2020-01-01")) %>%
+  select(source, arxiv_id, posted_date, title, abstract) %>%
+  distinct()
+
+```
+
+# Create final dataset (bind Crossref and arXiv data)
+
+```{r}
+
+covid_preprints <- bind_rows(cr_covid, ar_covid) %>%
+  select(source, doi, arxiv_id, posted_date, title, abstract) %>%
+  mutate(posted_date = as_date(posted_date)) %>%
+  write_csv("data/covid19_preprints.csv")
 
 ```
 
@@ -67,20 +142,24 @@ p_covid %>% distinct(doi) %>% tally
 
 ```{r}
 
-p_covid %>%
+covid_preprints %>%
   count(source, posted_date) %>%
+    filter(!is.na(source)) %>%
   ggplot(aes(x = posted_date, y = n, fill = source)) +
-  geom_col() +
+  geom_col(color = "#ffffff") +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
-       title = "COVID-19 preprints in bioRxiv and medRxiv") +
+       title = "COVID-19 preprints") +
   scale_x_date(date_breaks = "1 week",
                date_minor_breaks = "1 day",
-               limits = c(ymd("2020-01-01", Sys.Date()))) +
+               limits = c(ymd("2020-01-15", Sys.Date()))) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, hjust = 1),
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
         axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
-        axis.title.y = element_text(margin = margin(0, 20, 0, 0))) +
+        axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
+        legend.key.size = unit(0.5, "cm"),
+        legend.text=element_text(size = 8)) +
   ggsave("outputs/figures/covid19_preprints.png", width = 12, height = 6)
 
 ```
+
 
