@@ -1,0 +1,81 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+# Load packages 
+
+```{r}
+
+library(tidyverse)
+library(rcrossref)
+library(lubridate)
+
+```
+
+# Retrieve data
+
+```{r}
+
+# Details of all preprints published on bioRxiv and medRxiv since 1st December 2019
+# Uses the Crossref member number of CSHL (246) and retrieves all works classified
+# as "posted content", i.e. preprints.
+p_all <- rcrossref::cr_types_(types="posted-content", works=TRUE, 
+                              facet="publisher-name:*", 
+                              filter=c(member = 246, 
+                                       from_posted_date = "2019-12-01", 
+                                       until_posted_date = as.character(Sys.Date())), 
+                              limit=1000, 
+                              cursor="*",
+                              parse = TRUE,
+                              cursor_max = 100000)
+
+# Parse relevant fields into dataframe
+parsePreprintInfo <- function(item) {
+  tibble(
+    source = item$institution$name,
+    doi = item$DOI,
+    title = item$title[[1]],
+    posted_date = ymd(str_c(item$posted$`date-parts`[[1]][[1]], "-",
+                            item$posted$`date-parts`[[1]][[2]], "-",
+                            item$posted$`date-parts`[[1]][[3]])),
+    abstract = item$abstract
+  )
+}
+
+p_all_parsed <- map_dfr(p_all, function(x) 
+                               map_dfr(x$message$items, function(y)
+                                                        parsePreprintInfo(y)))
+
+# Generate a search string containing terms related to COVID-19
+search_string <- "coronavirus|wuhan|covid-19|sars-cov|ncov-2019|2019-ncov"
+
+# Subset preprints which mention COVID-19 related terms in title or abstract 
+p_covid <- p_all_parsed %>%
+  filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
+         str_detect(abstract, regex(search_string, ignore_case = TRUE)))
+
+# Save results to csv
+p_covid %>% write_csv("data/covid19_preprints.csv")
+
+# How many preprints are related to COVID-19 in total?
+p_covid %>% distinct(doi) %>% tally
+
+```
+
+# Visualization
+
+```{r}
+
+p_covid %>%
+  count(source, posted_date) %>%
+  ggplot(aes(x = posted_date, y = n, fill =source)) +
+  geom_col() +
+  labs(x = "Preprints", y = "Posted Date", fill = "Source",
+       title = "COVID-19 preprints in bioRxiv and medRxiv") +
+  theme_minimal() +
+  theme(axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
+        axis.title.y = element_text(margin = margin(0, 20, 0, 0)))
+
+```
+
