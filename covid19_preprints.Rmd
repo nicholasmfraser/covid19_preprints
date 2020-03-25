@@ -19,13 +19,14 @@ library(lubridate)
 # Details of all preprints published on bioRxiv and medRxiv since 1st December 2019
 # Uses the Crossref member number of CSHL (246) and retrieves all works classified
 # as "posted content", i.e. preprints.
-p_all <- rcrossref::cr_types_(types="posted-content", works=TRUE, 
-                              facet="publisher-name:*", 
-                              filter=c(member = 246, 
+p_all <- rcrossref::cr_types_(types = "posted-content",
+                              works = TRUE, 
+                              facet = "publisher-name:*", 
+                              filter = c(member = 246, 
                                        from_posted_date = "2019-12-01", 
                                        until_posted_date = as.character(Sys.Date())), 
-                              limit=1000, 
-                              cursor="*",
+                              limit = 1000, 
+                              cursor = "*",
                               parse = TRUE,
                               cursor_max = 100000)
 
@@ -68,9 +69,9 @@ p_covid %>% distinct(doi) %>% tally
 
 p_covid %>%
   count(source, posted_date) %>%
-  ggplot(aes(x = posted_date, y = n, fill =source)) +
+  ggplot(aes(x = posted_date, y = n, fill = source)) +
   geom_col() +
-  labs(x = "Preprints", y = "Posted Date", fill = "Source",
+  labs(x = "Posted Date", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints in bioRxiv and medRxiv") +
   scale_x_date(date_breaks = "1 week",
                date_minor_breaks = "1 day",
