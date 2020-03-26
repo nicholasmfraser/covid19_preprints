@@ -66,24 +66,22 @@ cr_p_df <- map_dfr(cr_p, function(x)
                          map_dfr(x$message$items, function(y)
                                                   parsePreprints(y)))
 
+```
+
+```{r}
+
 # Generate a search string containing terms related to COVID-19
 search_string <- "coronavirus|covid-19|sars-cov|ncov-2019|2019-ncov"
 
 # Subset preprints which mention COVID-19 related terms in title or abstract 
 cr_covid <- cr_p_df %>%
   filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
-         str_detect(abstract, regex(search_string, ignore_case = TRUE)))
-
-```
-
-```{r}
-
-# Rule-based matching of preprints to repositories. For CSHL repositories, the
-# repository name (bioRxiv/medRxiv) is contained in the 'institution' field. For
-# others we can use the 'publisher' field, except for any preprint servers 
-# hosted on OSF in which we should use the 'group_title' field to ensure we get
-# the right repository.
-cr_covid <- cr_covid %>%
+         str_detect(abstract, regex(search_string, ignore_case = TRUE))) %>%
+  # Rule-based matching of preprints to repositories. For CSHL repositories, the
+  # repository name (bioRxiv/medRxiv) is contained in the 'institution' field. For
+  # others we can use the 'publisher' field, except for any preprint servers 
+  # hosted on OSF in which we should use the 'group_title' field to ensure we get
+  # the right repository.
   mutate(source = case_when(
     institution == "bioRxiv" ~ "bioRxiv",
     institution == "medRxiv" ~ "medRxiv",
@@ -105,9 +103,26 @@ cr_covid <- cr_covid %>%
     group_title == "EcoEvoRxiv" ~ "EcoEvoRxiv (OSF)",
     group_title == "Open Science Framework" ~ "OSF Preprints",
   )) %>%
+  # Remove those that could not be unambiguously matched
+  filter(!is.na(source)) %>%
+  # Some preprints have multiple DOI records relating to multiple preprint
+  # versions (mainly in ChemRxiv and Preprints.org). In these cases the DOI 
+  # is usually appended with a version number, e.g. 10.1000/12345.v2. To ensure
+  # only a single record is counted per preprint, the version number is
+  # removed and only the earliest DOI record is kept
+  mutate(doi_clean = str_replace(doi, "\\.v.*|\\/v.*", "")) %>%
+  group_by(doi_clean) %>%
+  arrange(posted_date) %>%
+  slice(1) %>%
+  ungroup() %>%
+  # Additionally filter preprints with the same title posted on the same server
+  group_by(source, title) %>%
+  arrange(posted_date) %>%
+  slice(1) %>%
+  ungroup() %>%
+  # Select only relevant fields with unique values
   select(source, doi, posted_date, title, abstract) %>%
   distinct()
-
 
 ```
 
@@ -133,7 +148,9 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid-19 OR ti:sars-cov OR ti:nco
 
 covid_preprints <- bind_rows(cr_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
-  mutate(posted_date = as_date(posted_date)) %>%
+  mutate(posted_date = as_date(posted_date)) 
+
+covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
 
 ```
@@ -144,16 +161,17 @@ covid_preprints <- bind_rows(cr_covid, ar_covid) %>%
 
 covid_preprints %>%
   count(source, posted_date) %>%
-    filter(!is.na(source)) %>%
   ggplot(aes(x = posted_date, y = n, fill = source)) +
   geom_col(color = "#ffffff") +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints") +
   scale_x_date(date_breaks = "1 week",
                date_minor_breaks = "1 day",
-               limits = c(ymd("2020-01-15", Sys.Date()))) +
+               expand = c(0.01, 0),
+               limits = c(ymd("2020-15-01"), Sys.Date())) +
   theme_minimal() +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5),
+  theme(text = element_text(size = 12),
+        axis.text.x = element_text(angle = 90, vjust = 0.5),
         axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
         axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
         legend.key.size = unit(0.5, "cm"),
