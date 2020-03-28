@@ -9,5 +9,3 @@ With respect to Crossref, all records defined as "posted-content" are harvested 
 With respect to arXiv, records are harvested by searching directly (using the `arxiv_search` function of the aRxiv package) for COVID-19 related keywords in titles or abstracts.
 
 ![COVID-19 preprints](outputs/figures/covid19_preprints.png)
-
-![COVID-19 preprints per week](outputs/figures/covid19_preprints_week.png)
