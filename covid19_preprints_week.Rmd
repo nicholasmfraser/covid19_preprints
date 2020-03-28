@@ -1,0 +1,76 @@
+---
+title: "R Notebook"
+author: "Bianca Kramer @bmkramer"
+---
+
+# Load packages 
+
+```{r}
+
+library(tidyverse)
+library(lubridate)
+
+```
+
+# Load data
+
+```{r}
+
+covid_preprints <- read_csv(
+  "data/covid19_preprints.csv",
+  col_types = cols(arxiv_id = col_character()))
+
+```
+
+
+# Detect last date in sample
+
+```{r}
+
+sample_date <- covid_preprints %>%
+  pull(posted_date) %>%
+  max()
+
+```
+
+
+# Aggregate dates by week
+
+```{r}
+
+covid_preprints_week <- covid_preprints %>%
+  mutate(posted_week = as.Date(cut(posted_date,
+                            breaks = "week",
+                            start.on.monday = TRUE))) %>%
+  select(1:4, posted_week, everything())
+
+```
+
+
+
+# Visualization
+
+```{r}
+
+covid_preprints_week %>%
+  count(source, posted_week) %>%
+  ggplot(aes(x = posted_week, y = n, fill = source)) +
+  geom_col(color = "#ffffff") +
+  labs(x = "Posted Date (by week)", y = "Preprints", fill = "Source",
+       title = "COVID-19 preprints", 
+       subtitle = paste0("(up until ", sample_date, ")")) +
+  scale_x_date(date_breaks = "1 week",
+               expand = c(0.01, 0),
+               limits = c(ymd("2020-13-01"), Sys.Date())) +
+  theme_minimal() +
+  theme(text = element_text(size = 12),
+        axis.text.x = element_text(angle = 90, vjust = 0.5),
+        axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
+        axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
+        legend.key.size = unit(0.5, "cm"),
+        legend.text=element_text(size = 8)) +
+  ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
+
+```
+
+
