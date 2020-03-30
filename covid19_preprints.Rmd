@@ -22,7 +22,6 @@ library(aRxiv)
 # associated metadata in list format
 cr_p <- cr_types_(types = "posted-content",
                   works = TRUE, 
-                  facet = "publisher-name:*", 
                   filter = c(from_posted_date = "2020-01-01", 
                   until_posted_date = as.character(Sys.Date())), 
                   limit = 1000, 
@@ -38,8 +37,8 @@ cr_p <- cr_types_(types = "posted-content",
 parsePostedDate <- function(item) {
   if(length(item$posted$`date-parts`[[1]]) == 3) {
     return(ymd(str_c(item$posted$`date-parts`[[1]][[1]], "-",
-                            item$posted$`date-parts`[[1]][[2]], "-",
-                            item$posted$`date-parts`[[1]][[3]])))
+                     item$posted$`date-parts`[[1]][[2]], "-",
+                     item$posted$`date-parts`[[1]][[3]])))
   } else {
     return(NA)
   }
@@ -101,7 +100,7 @@ cr_covid <- cr_p_df %>%
     group_title == "EarthArXiv" ~ "EarthArXiv (OSF)",
     group_title == "IndiaRxiv" ~ "IndiaRxiv (OSF)",
     group_title == "EcoEvoRxiv" ~ "EcoEvoRxiv (OSF)",
-    group_title == "Open Science Framework" ~ "OSF Preprints",
+    group_title == "Open Science Framework" ~ "OSF Preprints"
   )) %>%
   # Remove those that could not be unambiguously matched
   filter(!is.na(source)) %>%
@@ -146,29 +145,34 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid-19 OR ti:sars-cov OR ti:nco
 
 ```{r}
 
+sample_date <- "2020-03-29"
+
 covid_preprints <- bind_rows(cr_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
-  mutate(posted_date = as_date(posted_date)) 
+  mutate(posted_date = as_date(posted_date)) %>%
+  filter(posted_date <= ymd(sample_date))
 
 covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
 
 ```
 
-# Visualization
+# Visualizations
 
 ```{r}
 
+# Daily preprint counts
 covid_preprints %>%
   count(source, posted_date) %>%
   ggplot(aes(x = posted_date, y = n, fill = source)) +
   geom_col(color = "#ffffff") +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
-       title = "COVID-19 preprints") +
-  scale_x_date(date_breaks = "1 week",
+       title = "COVID-19 preprints per day",
+       subtitle = paste0("(up until ", sample_date, ")")) +
+  scale_x_date(date_breaks = "7 days",
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-15-01"), Sys.Date())) +
+               limits = c(ymd("2020-01-15"), ymd(sample_date)+1)) +
   theme_minimal() +
   theme(text = element_text(size = 12),
         axis.text.x = element_text(angle = 90, vjust = 0.5),
@@ -176,8 +180,33 @@ covid_preprints %>%
         axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
         legend.key.size = unit(0.5, "cm"),
         legend.text=element_text(size = 8)) +
-  ggsave("outputs/figures/covid19_preprints.png", width = 12, height = 6)
+  ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
+
+# Weekly preprint counts
+covid_preprints %>%
+  mutate(posted_week = as.Date(cut(posted_date,
+                                   breaks = "week",
+                                   start.on.monday = TRUE))) %>%
+  count(source, posted_week) %>%
+  ggplot(aes(x = posted_week, y = n, fill = source)) +
+  geom_col(color = "#ffffff") +
+  labs(x = "Posted Date (by week)", y = "Preprints", fill = "Source",
+       title = "COVID-19 preprints per week", 
+       subtitle = paste0("(up until ", sample_date, ")")) +
+  scale_x_date(date_breaks = "1 week",
+               expand = c(0.01, 0),
+               limits = c(ymd("2020-01-13"), ymd(sample_date))) +
+  theme_minimal() +
+  theme(text = element_text(size = 12),
+        axis.text.x = element_text(angle = 90, vjust = 0.5),
+        axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
+        axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
+        legend.key.size = unit(0.5, "cm"),
+        legend.text=element_text(size = 8)) +
+  ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 
 ```
+
+
 
 

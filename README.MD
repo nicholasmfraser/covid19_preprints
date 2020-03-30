@@ -1,9 +1,6 @@
 # COVID-19 Preprints
 
-**[original repo by @nicholasmfraser]**  
-**[added in this fork: visualization of distribution per week]**
-
-This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time.
+This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time. With thanks to [Bianca Kramer](https://github.com/bmkramer) for improving the visualisations.
 
 Preprint data is harvested from Crossref and arXiv using the R packages [rcrossref](https://github.com/ropensci/rcrossref) and [aRxiv](https://github.com/ropensci/aRxiv), respectively. 
 
@@ -11,6 +8,8 @@ With respect to Crossref, all records defined as "posted-content" are harvested 
 
 With respect to arXiv, records are harvested by searching directly (using the `arxiv_search` function of the aRxiv package) for COVID-19 related keywords in titles or abstracts.
 
-![COVID-19 preprints](outputs/figures/covid19_preprints.png)  
+
+
+![COVID-19 preprints per day](outputs/figures/covid19_preprints_day.png)  
 
 ![COVID-19 preprints per week](outputs/figures/covid19_preprints_week.png)
