@@ -145,7 +145,7 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid-19 OR ti:sars-cov OR ti:nco
 
 ```{r}
 
-sample_date <- "2020-03-29"
+sample_date <- "2020-04-05"
 
 covid_preprints <- bind_rows(cr_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
@@ -165,7 +165,7 @@ covid_preprints %>%
 covid_preprints %>%
   count(source, posted_date) %>%
   ggplot(aes(x = posted_date, y = n, fill = source)) +
-  geom_col(color = "#ffffff") +
+  geom_col(color = "#ffffff", size = 0.25) +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints per day",
        subtitle = paste0("(up until ", sample_date, ")")) +
@@ -189,7 +189,7 @@ covid_preprints %>%
                                    start.on.monday = TRUE))) %>%
   count(source, posted_week) %>%
   ggplot(aes(x = posted_week, y = n, fill = source)) +
-  geom_col(color = "#ffffff") +
+  geom_col(color = "#ffffff", size = 0.25) +
   labs(x = "Posted Date (by week)", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints per week", 
        subtitle = paste0("(up until ", sample_date, ")")) +
