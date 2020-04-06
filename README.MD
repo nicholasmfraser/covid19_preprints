@@ -1,6 +1,6 @@
 # COVID-19 Preprints
 
-This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time. With thanks to [Bianca Kramer](https://github.com/bmkramer) for improving the visualisations.
+This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time. Work by [Nicholas Fraser](https://orcid.org/0000-0002-7582-6339), with thanks to [Bianca Kramer](https://github.com/bmkramer) for improving the visualisations.
 
 A citable version of this repository is also available on figshare, here: [https://doi.org/10.6084/m9.figshare.12033672](https://doi.org/10.6084/m9.figshare.12033672).
 
