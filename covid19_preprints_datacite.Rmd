@@ -209,25 +209,17 @@ theme_set(theme_minimal() +
 
 ```
 
-Rename file to feed into visualization
-```{r}
-
-covid_preprints <- covid_preprints_datacite
-
-```
-
-
 
 ```{r}
 
 # Repositories with < 10 preprints
-other <- covid_preprints %>%
+other <- covid_preprints_datacite %>%
   count(source) %>%
   filter(n < 10) %>%
   pull(source)
 
 # Daily preprint counts
-covid_preprints %>%
+covid_preprints_datacite %>%
   mutate(source = case_when(
     source %in% other ~ "Other*",
     T ~ source
@@ -236,17 +228,14 @@ covid_preprints %>%
   ggplot(aes(x = posted_date, y = n, fill = source)) +
   geom_col() +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
-       title = "COVID-19 preprints per day",
-       subtitle = paste0("(up until ", sample_date, ")"),
-       caption = paste0("* 'Other' refers to preprint repositories containing ",
-                        "<10 relevant preprints. These include: \n",
-                        paste(other, collapse = ", "), ".")) +
+       title = "COVID-19 preprints per day (DataCite)",
+       subtitle = paste0("(up until ", sample_date, ")")) +
   scale_x_date(date_breaks = "7 days",
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-15"), ymd(sample_date)+1)) +
   scale_fill_manual(values = usecol(pal_unikn_pair)) +
-  ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
+  ggsave("outputs/figures/covid19_preprints_datacite_day.png", width = 12, height = 6)
 
 ```
 
@@ -254,7 +243,7 @@ covid_preprints %>%
 ```{r}
 
 # Weekly preprint counts
-covid_preprints %>%
+covid_preprints_datacite %>%
   mutate(
     source = case_when(
       source %in% other ~ "Other*",
@@ -267,23 +256,20 @@ covid_preprints %>%
   ggplot(aes(x = posted_week, y = n, fill = source)) +
   geom_col() +
   labs(x = "Posted Date (by week)", y = "Preprints", fill = "Source",
-       title = "COVID-19 preprints per week", 
-       subtitle = paste0("(up until ", sample_date, ")"),
-       caption = paste0("* 'Other' refers to preprint repositories containing ",
-                        "<10 relevant preprints. These include: \n",
-                        paste(other, collapse = ", "), ".")) +
+       title = "COVID-19 preprints per week (DataCite)", 
+       subtitle = paste0("(up until ", sample_date, ")")) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
   scale_fill_manual(values = usecol(pal_unikn_pair)) +
-  ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
+  ggsave("outputs/figures/covid19_preprints_datacite_week.png", width = 12, height = 6)
 
 ```
 
 ```{r}
 
 # Cumulative daily preprint counts
-covid_preprints %>%
+covid_preprints_datacite %>%
   mutate(source = case_when(
       source %in% other ~ "Other*",
       T ~ source
@@ -296,11 +282,8 @@ covid_preprints %>%
   ggplot() +
   geom_area(aes(x = posted_date, y = cumulative_n, fill = source)) +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
-       title = "COVID-19 preprints (cumulative)", 
-       subtitle = paste0("(up until ", sample_date, ")"),
-       caption = paste0("* 'Other' refers to preprint repositories containing ",
-                        "<10 relevant preprints. These include: \n",
-                        paste(other, collapse = ", "), ".")) +
+       title = "COVID-19 preprints (cumulative) (DataCite)", 
+       subtitle = paste0("(up until ", sample_date, ")")) +
   scale_y_continuous(labels = scales::comma) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
@@ -314,7 +297,7 @@ covid_preprints %>%
         legend.key.size = unit(0.5, "cm"),
         legend.text = element_text(size = 8),
         plot.caption = element_text(size = 8, color = "darkgrey", margin = margin(20, 0, 0, 0))) +
-  ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
+  ggsave("outputs/figures/covid19_preprints_datacite_day_cumulative.png", width = 12, height = 6)
 
 ```
 
