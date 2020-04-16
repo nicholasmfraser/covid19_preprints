@@ -60,14 +60,11 @@ data <- map(seq, getDataCite_progress)
 ```
 
 
-Next, relevant preprint metadata fields are parsed from the list format returned in the previous step, to a more manageable data frame. Note the 'institution', 'publisher' and 'group-title' fields are retained, 
-to be later used to match preprints to specific preprint repositories.
+Next, relevant preprint metadata fields are parsed from the list format returned in the previous step, to a more manageable data frame. Note that specific preprint repositories are encoded in the field 'client', and abstracts are included in the field 'descriptions'. The resulting columns 'title' and 'descriptions' are list columns and need to be processed further to extract the needed information. 
 
 
 
 ```{r}
-
-item <- data[[5]]
 
 parsePreprints <- function(item) {
   res <- tibble(
@@ -81,60 +78,59 @@ parsePreprints <- function(item) {
 
 parsePreprints2 <- function(x){
   x %>% mutate(
-    title = map(title, "title", .null = NULL),
-    description = map(descriptions, "description", .null = NULL),
-    descriptionType = map(descriptions, "descriptionType", .null = NULL)) %>%
+    title = map(title, "title", .null = NA),
+    description = map(descriptions, "description", .null = NA),
+    descriptionType = map(descriptions, "descriptionType", .null = NA)) %>%
     select(-descriptions)
 }
+#add unnest(title) to parsePreprints2 creates additional rows
+unnest(title)
+
+
+
+#only keep title field from original list element 'titles'
+#some records have 2 elements in title field - collapse into 1
+#NB do this after descriptions, add description as grouping variable!
+parseTitles <- function(x){
+  x <- x %>% 
+    mutate(IDseq = rownames(.)) %>%
+    unnest(title) %>%
+    select(-c(titleType,lang, descriptions)) %>%
+    group_by(IDseq, doi, created, client) %>%
+    summarize(title = str_c(title, collapse = "; ")) %>%
+    ungroup()
+  } 
   
-extract <- parsePreprints2(extract)
-
-extract <- map(data, parsePreprints) 
-extract2 <- map_dfr(extract, parsePreprints2)
-
-```
-
-
-
-
-```{r, cache = TRUE}
-
-# Function to parse posted date parts to more useful YYYY-MM-DD format
-parsePostedDate <- function(posted) {
-  if(length(posted$`date-parts`[[1]]) == 3) {
-    return(format(as.Date(paste0(posted$`date-parts`[[1]][[1]], "-",
-                          posted$`date-parts`[[1]][[2]], "-",
-                          posted$`date-parts`[[1]][[3]]),
-           "%Y-%m-%d")))
-  } else  {
-    return(NA)
+parseDescriptions <- function(x){
+  x <- x %>%
+    mutate(IDseq = rownames(.)) %>%
+    select(IDseq, everything()) %>%
+    unnest(descriptions, keep_empty = TRUE) %>%
+    filter(descriptionType == "Abstract") %>%
+    rename(abstract = description) %>%
+    select(-c(descriptionType,lang, title))
   }
-}
 
-# Function to parse posted content to data frame
-parsePreprints <- function(item) {
-  tibble(
-    institution = ifelse(length(item$institution$name), item$institution$name, NA),
-    publisher = item$publisher,
-    group_title = ifelse(length(item$`group-title`), item$`group-title`, NA),
-    cr_member_id = item$member,
-    doi = item$DOI,
-    title = item$title[[1]],
-    # For posted-content, use the 'posted' date fields for the relevant date. For
-    # SSRN preprints, use the 'created' date
-    posted_date = ifelse(length(item$posted), 
-                         parsePostedDate(item$posted), 
-                         parsePostedDate(item$created)),
-    abstract = ifelse(length(item$abstract), item$abstract, NA)
-  )
-}
+data_df <- map_dfr(data, parsePreprints) 
+data_df_title <- parseTitles(data_df)
+data_df_abstract <- parseDescriptions(data_df)
 
-# Iterate over posted-content list and build data frame
-cr_posted_content_df <- map_dfr(cr_posted_content, function(x) 
-                          map_dfr(x$message$items, function(y)
-                            parsePreprints(y)))
+data_df2 <- data_df_title %>%
+  left_join(data_df_abstract, by = c("IDseq", "doi", "created", "client")) %>%
+  distinct()
+
+
+extract2 <- map(extract, parsePreprints2)
+extract3 <- parsePreprints2(extract)
+extract3_title <- parseTitles(extract)
+extract3_des <- parseDescriptions(extract)
+
+
+
 
 ```
+
+
 
 original below
 
