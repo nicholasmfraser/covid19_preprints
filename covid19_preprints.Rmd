@@ -340,7 +340,7 @@ covid_preprints %>%
   scale_y_continuous(labels = scales::comma) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-13"), ymd(sample_date))) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date)+1)) +
   scale_fill_manual(values = usecol(pal_unikn_pair)) +
   theme_minimal() +
   theme(text = element_text(size = 12),
