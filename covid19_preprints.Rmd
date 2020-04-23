@@ -351,7 +351,7 @@ ArXiv records are retrieved using the [aRxiv](https://github.com/ropensci/aRxiv)
 
 # For returning details of preprints on arXiv, we can use the aRxiv package and
 # define title and abstract search strings
-ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov', limit = 10000) %>% 
+ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2 ', limit = 10000) %>% 
   mutate(source = "arXiv",
          arxiv_id = id,
          posted_date = as.Date(submitted)) %>%
