@@ -27,7 +27,7 @@ library(rcrossref)
 library(rdatacite)
 library(tidyverse)
 library(rvest)
-library(unikn) # colorblind friendly palette
+library(unikn) # nicer color palette
 ```
 
 # Crossref
@@ -375,7 +375,7 @@ the relevant data
 ``` r
 # For returning details of preprints on arXiv, we can use the aRxiv package and
 # define title and abstract search strings
-ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov', limit = 10000) %>% 
+ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2 ', limit = 10000) %>% 
   mutate(source = "arXiv",
          arxiv_id = id,
          posted_date = as.Date(submitted)) %>%
@@ -387,7 +387,7 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
 # Create final dataset ((bind Crossref, DataCite and arXiv data)
 
 ``` r
-sample_date <- "2020-04-19" # UPDATE FOR NEW DATASET
+sample_date <- "2020-04-26" # UPDATE FOR NEW DATASET
 
 covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
@@ -408,15 +408,16 @@ theme_set(theme_minimal() +
           axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
           legend.key.size = unit(0.5, "cm"),
           legend.text = element_text(size = 8),
-          plot.caption = element_text(size = 8, color = "darkgrey", 
+          plot.caption = element_text(size = 10, hjust = 0, color = "darkgrey", 
                                       margin = margin(20, 0, 0, 0))))
 ```
 
 ``` r
-# Minimum number of preprints to be included in graphs
-n_min <- 20
+# Minimum number of preprints to be included in graphs (otherwise too many
+# categories/labels is confusing)
+n_min <- 25
 
-# Repositories with < 10 preprints
+# Repositories with < min preprints
 other <- covid_preprints %>%
   count(source) %>%
   filter(n < n_min) %>%
@@ -426,7 +427,7 @@ other_text = paste0("* 'Other' refers to preprint repositories  containing <",
                     n_min, " relevant preprints. These include: ",
                     paste(other, collapse = ", "), ".")
 
-other_caption <- str_wrap(other_text, width = 120)
+other_caption <- str_wrap(other_text, width = 150)
 
 # Daily preprint counts
 covid_preprints %>%
@@ -444,8 +445,8 @@ covid_preprints %>%
   scale_x_date(date_breaks = "7 days",
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-15"), ymd(sample_date)+1)) +
-  scale_fill_manual(values = usecol(pal_unikn_pair)) +
+               limits = c(ymd("2020-01-15"), ymd(sample_date) + 1)) +
+  scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 ```
 
@@ -472,7 +473,7 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
-  scale_fill_manual(values = usecol(pal_unikn_pair)) +
+  scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 ```
 
@@ -499,8 +500,8 @@ covid_preprints %>%
   scale_y_continuous(labels = scales::comma) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-13"), ymd(sample_date)+1)) +
-  scale_fill_manual(values = usecol(pal_unikn_pair)) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
+  scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
   theme_minimal() +
   theme(text = element_text(size = 12),
         axis.text.x = element_text(angle = 90, vjust = 0.5),
