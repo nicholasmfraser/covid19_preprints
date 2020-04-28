@@ -462,7 +462,7 @@ covid_preprints %>%
        subtitle = paste0("(up until ", sample_date, ")"),
        caption = other_caption) +
   scale_x_date(date_breaks = "1 week",
-               expand = c(0.01, 0),
+               expand = c(0, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
   scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
