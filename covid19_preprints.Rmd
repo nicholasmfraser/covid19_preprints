@@ -493,14 +493,6 @@ covid_preprints %>%
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
   scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
-  theme_minimal() +
-  theme(text = element_text(size = 12),
-        axis.text.x = element_text(angle = 90, vjust = 0.5),
-        axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
-        axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
-        legend.key.size = unit(0.5, "cm"),
-        legend.text = element_text(size = 8),
-        plot.caption = element_text(size = 8, color = "darkgrey", margin = margin(20, 0, 0, 0))) +
   ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
 
 ```
