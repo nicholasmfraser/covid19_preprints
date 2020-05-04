@@ -387,7 +387,7 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
 # Create final dataset ((bind Crossref, DataCite and arXiv data)
 
 ``` r
-sample_date <- "2020-04-26" # UPDATE FOR NEW DATASET
+sample_date <- "2020-05-03" # UPDATE FOR NEW DATASET
 
 covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
@@ -415,7 +415,7 @@ theme_set(theme_minimal() +
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 25
+n_min <- 30
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
@@ -471,7 +471,7 @@ covid_preprints %>%
        subtitle = paste0("(up until ", sample_date, ")"),
        caption = other_caption) +
   scale_x_date(date_breaks = "1 week",
-               expand = c(0.01, 0),
+               expand = c(0, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
   scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)

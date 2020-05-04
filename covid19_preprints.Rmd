@@ -365,7 +365,7 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
 
-sample_date <- "2020-04-26" # UPDATE FOR NEW DATASET
+sample_date <- "2020-05-03" # UPDATE FOR NEW DATASET
 
 covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
@@ -379,7 +379,7 @@ covid_preprints %>%
 ```{r include = FALSE}
 
 # Read back data for knitr
-sample_date <- "2020-04-26"
+sample_date <- "2020-05-03"
 covid_preprints <- read_csv("data/covid19_preprints.csv")
 
 ```
@@ -405,7 +405,7 @@ theme_set(theme_minimal() +
 
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 25
+n_min <- 30
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
@@ -457,7 +457,7 @@ covid_preprints %>%
   count(source, posted_week) %>%
   ggplot(aes(x = posted_week, y = n, fill = source)) +
   geom_col() +
-  labs(x = "Posted Date (by week)", y = "Preprints", fill = "Source",
+  labs(x = "Posted Date (week beginning)", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints per week", 
        subtitle = paste0("(up until ", sample_date, ")"),
        caption = other_caption) +
