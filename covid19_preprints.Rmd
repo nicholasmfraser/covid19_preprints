@@ -370,6 +370,11 @@ sample_date <- "2020-05-03" # UPDATE FOR NEW DATASET
 covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
   filter(posted_date <= as.Date(sample_date))
+  
+#clean abstracts (remove jats-tags, remove leading string "Abstract" and similar)
+covid_preprints <- covid_preprints %>%
+  mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>")) %>%
+  mutate(abstract = str_remove_all(abstract, "<.*?>"))  
 
 covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
