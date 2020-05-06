@@ -372,7 +372,7 @@ covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
   filter(posted_date <= as.Date(sample_date))
   
 #clean abstracts (remove jats-tags, remove leading string "Abstract" and similar)
-covid_preprints <- preprints %>%
+covid_preprints <- covid_preprints %>%
   mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>")) %>%
   mutate(abstract = str_remove_all(abstract, "<.*?>"))  
 
