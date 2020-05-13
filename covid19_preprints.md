@@ -27,7 +27,13 @@ library(rcrossref)
 library(rdatacite)
 library(tidyverse)
 library(rvest)
-library(unikn) # nicer color palette
+library(pals)
+```
+
+# Set the latest sample date
+
+``` r
+sample_date <- "2020-05-10"
 ```
 
 # Crossref
@@ -48,7 +54,7 @@ the ‘high level’ `cr_types` function.
 cr_posted_content <- cr_types_(types = "posted-content",
                                works = TRUE, 
                                filter = c(from_posted_date = "2020-01-01", 
-                                          until_posted_date = as.character(Sys.Date())),
+                                          until_posted_date = sample_date),
                                limit = 1000, 
                                cursor = "*",
                                parse = TRUE,
@@ -64,36 +70,30 @@ later used to match preprints to specific preprint repositories.
 # Function to parse posted "date parts" to more useful YYYY-MM-DD format
 parsePostedDate <- function(posted) {
   if(length(posted$`date-parts`[[1]]) == 3) {
-    return(format(as.Date(paste0(posted$`date-parts`[[1]][[1]], "-",
-                          posted$`date-parts`[[1]][[2]], "-",
-                          posted$`date-parts`[[1]][[3]]),
-           "%Y-%m-%d")))
-  } else  {
-    return(NA)
+    ymd(paste0(sprintf("%02d", unlist(posted$`date-parts`)), collapse = "-"))
+  } else {
+    NA
   }
 }
 
 # Function to parse preprint data to data frame
 parsePreprints <- function(item) {
   tibble(
-    institution = ifelse(length(item$institution$name), item$institution$name, NA),
+    institution = if(length(item$institution$name)) item$institution$name else NA,
     publisher = item$publisher,
-    group_title = ifelse(length(item$`group-title`), item$`group-title`, NA),
+    group_title = if(length(item$`group-title`)) item$`group-title` else NA,
     cr_member_id = item$member,
     doi = item$DOI,
     title = item$title[[1]],
     # For posted-content, use the 'posted' date fields for the relevant date. 
     # For SSRN preprints, use the 'created' date
-    posted_date = ifelse(length(item$posted), 
-                         parsePostedDate(item$posted), 
-                         parsePostedDate(item$created)),
-    abstract = ifelse(length(item$abstract), item$abstract, NA)
+    posted_date = if(length(item$posted)) parsePostedDate(item$posted) else parsePostedDate(item$created),
+    abstract = if(length(item$abstract)) item$abstract else NA
   )
 }
 
 # Iterate over posted-content list and build data frame
-cr_posted_content_df <- map_df(cr_posted_content, 
-                                ~ map_df(.x$message$items, parsePreprints))
+cr_posted_content_df <- map_df(cr_posted_content, ~ map_df(.$message$items, parsePreprints))
 ```
 
 In the final step, preprints are subsetted to include only those related
@@ -124,6 +124,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     publisher == "SAGE Publications" ~ "SAGE",
     publisher == "FapUNIFESP (SciELO)" ~ "SciELO",
     publisher == "Institute of Electrical and Electronics Engineers (IEEE)" ~ "Techrxiv (IEEE)",
+    publisher == "Authorea, Inc." ~ "Authorea",
     group_title == "PsyArXiv" ~ "PsyArXiv (OSF)",
     group_title == "NutriXiv" ~ "NutriXiv (OSF)",
     group_title == "SocArXiv" ~ "SocArXiv (OSF)",
@@ -139,6 +140,8 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     group_title == "SportRxiv" ~ "SportRxiv (OSF)",
     group_title == "LawArXiv" ~ "LawArXiv (OSF)",
     group_title == "Frenxiv" ~ "Frenxiv (OSF)",
+    group_title == "MetaArXiV" ~ "MetaArXiV (OSF)",
+    group_title == "AgriXiv" ~ "AgriXiv (OSF)",
     group_title == "Open Science Framework" ~ "OSF Preprints"
   )) %>%
   # Remove those that could not be unambiguously matched or do not seem to be
@@ -160,9 +163,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   slice(1) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
-  select(source, doi, posted_date, title, abstract) %>%
-  distinct() %>% 
-  mutate(posted_date = as.Date(posted_date))
+  distinct(source, doi, posted_date, title, abstract)
 ```
 
 A side effect of the above procedure is that some preprint servers, most
@@ -176,7 +177,7 @@ harvested using the `cr_works_` function for the ISSN of SSRN
 # Query SSRN preprints
 cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
                                from_created_date = "2020-01-01", 
-                               until_created_date = as.character(Sys.Date())), 
+                               until_created_date = sample_date), 
                     limit = 1000,
                     cursor = "*",
                     parse = TRUE,
@@ -210,11 +211,12 @@ getSSRNPublicationDate <- function(doi) {
       html_nodes("meta[name='citation_online_date'][content]") %>%
       html_attr('content')
     # Sometimes the doi resolves to an empty page - in these cases return NA
-    ifelse(length(d), d, NA)
+    if(length(d)) d else NA
   },
   error = function(e) {
     NA
   })
+  
   return(posted_date)
 }
 
@@ -223,20 +225,18 @@ cr_ssrn_covid <- cr_ssrn_df %>%
   # Filter COVID-19 related preprints. SSRN metadata does not contain abstracts
   filter(str_detect(title, regex(search_string, ignore_case = TRUE))) %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
-  mutate(posted_date = as.Date(map_chr(doi, getSSRNPublicationDate))) %>%
-  # Select relevant fields to keep
-  mutate(source = "SSRN") %>%
-  select(source, doi, posted_date, title, abstract) %>%
+  mutate(posted_date = ymd(map_chr(doi, getSSRNPublicationDate)),
+         source = "SSRN") %>%
   # Keep only the first preprint where multiple preprints exist with the same title
   group_by(source, title) %>%
   arrange(posted_date) %>%
   slice(1) %>%
   ungroup() %>%
-  distinct()
+  distinct(source, doi, posted_date, title, abstract)
 ```
 
-The datasets derived from “posted-content” and from SSRN can then be
-merged to a final Crossref dataset
+The datasets derived from “posted-content” and from SSRN are merged to a
+final Crossref dataset
 
 ``` r
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
@@ -279,8 +279,7 @@ dois <- dc_dois(query = "types.resourceType:Preprint",
 total <- dois$meta$total
 
 #create pagination sequence
-seq <- seq(1, total, 1000)
-seq <- c(1:length(seq))
+seq <- c(1:ceiling(total/1000))
 
 #set counter for progress bar
 pb <- progress_estimated(length(seq))
@@ -360,8 +359,7 @@ dc_covid <- dc_preprints_df %>%
   slice(1) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
-  select(source, doi, posted_date, title, abstract) %>%
-  distinct()
+  distinct(source, doi, posted_date, title, abstract)
 ```
 
 # arXiv
@@ -378,8 +376,8 @@ the relevant data
 ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2 ', limit = 10000) %>% 
   mutate(source = "arXiv",
          arxiv_id = id,
-         posted_date = as.Date(submitted)) %>%
-  filter(posted_date >= as.Date("2020-01-01")) %>%
+         posted_date = ymd(submitted)) %>%
+  filter(posted_date >= ymd("2020-01-01")) %>%
   select(source, arxiv_id, posted_date, title, abstract) %>%
   distinct()
 ```
@@ -387,11 +385,14 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
 # Create final dataset ((bind Crossref, DataCite and arXiv data)
 
 ``` r
-sample_date <- "2020-05-03" # UPDATE FOR NEW DATASET
-
 covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
   select(source, doi, arxiv_id, posted_date, title, abstract) %>%
-  filter(posted_date <= as.Date(sample_date))
+  filter(posted_date <= ymd(sample_date))
+  
+#clean abstracts (remove jats-tags, remove leading string "Abstract" and similar)
+covid_preprints <- covid_preprints %>%
+  mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>")) %>%
+  mutate(abstract = str_remove_all(abstract, "<.*?>"))  
 
 covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
@@ -408,14 +409,14 @@ theme_set(theme_minimal() +
           axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
           legend.key.size = unit(0.5, "cm"),
           legend.text = element_text(size = 8),
-          plot.caption = element_text(size = 10, hjust = 0, color = "darkgrey", 
+          plot.caption = element_text(size = 10, hjust = 0, color = "grey25", 
                                       margin = margin(20, 0, 0, 0))))
 ```
 
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 30
+n_min <- 20
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
@@ -423,8 +424,18 @@ other <- covid_preprints %>%
   filter(n < n_min) %>%
   pull(source)
 
+fct_levels <- covid_preprints %>% 
+  mutate(source = case_when(
+           source %in% other ~ "Other*",
+           T ~ source
+        )) %>%
+  count(source) %>%
+  arrange(desc(n)) %>%
+  mutate(source = c(source[source != "Other*"], "Other*")) %>%
+  pull(source)
+
 other_text = paste0("* 'Other' refers to preprint repositories  containing <",
-                    n_min, " relevant preprints. These include: ",
+                    n_min, " total relevant preprints. These include: ",
                     paste(other, collapse = ", "), ".")
 
 other_caption <- str_wrap(other_text, width = 150)
@@ -434,7 +445,8 @@ covid_preprints %>%
   mutate(source = case_when(
     source %in% other ~ "Other*",
     T ~ source
-  )) %>%
+  ),
+  source = factor(source, levels = fct_levels)) %>%
   count(source, posted_date) %>%
   ggplot(aes(x = posted_date, y = n, fill = source)) +
   geom_col() +
@@ -445,12 +457,12 @@ covid_preprints %>%
   scale_x_date(date_breaks = "7 days",
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-15"), ymd(sample_date) + 1)) +
-  scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
+  scale_fill_manual(values = pals::stepped3(n = 19)) +
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-15-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 ``` r
 # Weekly preprint counts
@@ -460,24 +472,25 @@ covid_preprints %>%
       source %in% other ~ "Other*",
       T ~ source
     ),
-    posted_week = as.Date(cut(posted_date,
-                                   breaks = "week",
-                                   start.on.monday = TRUE))) %>%
+    source = factor(source, levels = fct_levels),
+    posted_week = ymd(cut(posted_date,
+                          breaks = "week",
+                          start.on.monday = TRUE))) %>%
   count(source, posted_week) %>%
   ggplot(aes(x = posted_week, y = n, fill = source)) +
   geom_col() +
-  labs(x = "Posted Date (by week)", y = "Preprints", fill = "Source",
+  labs(x = "Posted Date (week beginning)", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints per week", 
        subtitle = paste0("(up until ", sample_date, ")"),
        caption = other_caption) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
-  scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
+  scale_fill_manual(values = pals::stepped3(n = 19)) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 ``` r
 # Cumulative daily preprint counts
@@ -485,7 +498,8 @@ covid_preprints %>%
   mutate(source = case_when(
       source %in% other ~ "Other*",
       T ~ source
-    )) %>%
+    ),
+    source = factor(source, levels = fct_levels)) %>%
   count(source, posted_date) %>%
   complete(posted_date, nesting(source), fill = list(n = 0)) %>%
   group_by(source) %>%
@@ -501,16 +515,8 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
-  scale_fill_manual(values = usecol(pal_unikn_pair, n = 16)) +
-  theme_minimal() +
-  theme(text = element_text(size = 12),
-        axis.text.x = element_text(angle = 90, vjust = 0.5),
-        axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
-        axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
-        legend.key.size = unit(0.5, "cm"),
-        legend.text = element_text(size = 8),
-        plot.caption = element_text(size = 8, color = "darkgrey", margin = margin(20, 0, 0, 0))) +
+  scale_fill_manual(values = pals::stepped3(n = 19)) +
   ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
