@@ -30,6 +30,14 @@ library(unikn) # nicer color palette
 
 ```
 
+# Set the latest sample date
+
+```{r}
+
+sample_date <- "2020-05-10"
+
+```
+
 # Crossref
 
 Harvesting of Crossref metadata is easily achieved using the [rcrossref](https://github.com/ropensci/rcrossref) package for R. In general, preprints are indexed in Crossref with the 'type' field given a value of 'posted-content'. The `cr_types_` function can therefore be used to retrieve all metadata related to records with the type of 'posted-content', filtered for the dates of this analysis (i.e. 2020-01-01 until present). Note that here, the 'low level' `cr_types_` function is used to return all metadata in list format, as this also includes some fields (e.g. abstract) that are not returned by the 'high level' `cr_types` function.
@@ -40,7 +48,7 @@ Harvesting of Crossref metadata is easily achieved using the [rcrossref](https:/
 cr_posted_content <- cr_types_(types = "posted-content",
                                works = TRUE, 
                                filter = c(from_posted_date = "2020-01-01", 
-                                          until_posted_date = as.character(Sys.Date())),
+                                          until_posted_date = sample_date),
                                limit = 1000, 
                                cursor = "*",
                                parse = TRUE,
@@ -55,36 +63,30 @@ Relevant preprint metadata fields are parsed from the list format returned in th
 # Function to parse posted "date parts" to more useful YYYY-MM-DD format
 parsePostedDate <- function(posted) {
   if(length(posted$`date-parts`[[1]]) == 3) {
-    return(format(as.Date(paste0(posted$`date-parts`[[1]][[1]], "-",
-                          posted$`date-parts`[[1]][[2]], "-",
-                          posted$`date-parts`[[1]][[3]]),
-           "%Y-%m-%d")))
-  } else  {
-    return(NA)
+    ymd(paste0(sprintf("%02d", unlist(posted$`date-parts`)), collapse = "-"))
+  } else {
+    NA
   }
 }
 
 # Function to parse preprint data to data frame
 parsePreprints <- function(item) {
   tibble(
-    institution = ifelse(length(item$institution$name), item$institution$name, NA),
+    institution = if(length(item$institution$name)) item$institution$name else NA,
     publisher = item$publisher,
-    group_title = ifelse(length(item$`group-title`), item$`group-title`, NA),
+    group_title = if(length(item$`group-title`)) item$`group-title` else NA,
     cr_member_id = item$member,
     doi = item$DOI,
     title = item$title[[1]],
     # For posted-content, use the 'posted' date fields for the relevant date. 
     # For SSRN preprints, use the 'created' date
-    posted_date = ifelse(length(item$posted), 
-                         parsePostedDate(item$posted), 
-                         parsePostedDate(item$created)),
-    abstract = ifelse(length(item$abstract), item$abstract, NA)
+    posted_date = if(length(item$posted)) parsePostedDate(item$posted) else parsePostedDate(item$created),
+    abstract = if(length(item$abstract)) item$abstract else NA
   )
 }
 
 # Iterate over posted-content list and build data frame
-cr_posted_content_df <- map_df(cr_posted_content, 
-                                ~ map_df(.x$message$items, parsePreprints))
+cr_posted_content_df <- map_df(cr_posted_content, ~ map_df(.$message$items, parsePreprints))
 
 ```
 
@@ -116,6 +118,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     publisher == "SAGE Publications" ~ "SAGE",
     publisher == "FapUNIFESP (SciELO)" ~ "SciELO",
     publisher == "Institute of Electrical and Electronics Engineers (IEEE)" ~ "Techrxiv (IEEE)",
+    publisher == "Authorea, Inc." ~ "Authorea",
     group_title == "PsyArXiv" ~ "PsyArXiv (OSF)",
     group_title == "NutriXiv" ~ "NutriXiv (OSF)",
     group_title == "SocArXiv" ~ "SocArXiv (OSF)",
@@ -131,6 +134,8 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     group_title == "SportRxiv" ~ "SportRxiv (OSF)",
     group_title == "LawArXiv" ~ "LawArXiv (OSF)",
     group_title == "Frenxiv" ~ "Frenxiv (OSF)",
+    group_title == "MetaArXiV" ~ "MetaArXiV (OSF)",
+    group_title == "AgriXiv" ~ "AgriXiv (OSF)",
     group_title == "Open Science Framework" ~ "OSF Preprints"
   )) %>%
   # Remove those that could not be unambiguously matched or do not seem to be
@@ -152,9 +157,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   slice(1) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
-  select(source, doi, posted_date, title, abstract) %>%
-  distinct() %>% 
-  mutate(posted_date = as.Date(posted_date))
+  distinct(source, doi, posted_date, title, abstract)
 
 ```
 
@@ -165,7 +168,7 @@ A side effect of the above procedure is that some preprint servers, most notably
 # Query SSRN preprints
 cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
                                from_created_date = "2020-01-01", 
-                               until_created_date = as.character(Sys.Date())), 
+                               until_created_date = sample_date), 
                     limit = 1000,
                     cursor = "*",
                     parse = TRUE,
@@ -192,11 +195,12 @@ getSSRNPublicationDate <- function(doi) {
       html_nodes("meta[name='citation_online_date'][content]") %>%
       html_attr('content')
     # Sometimes the doi resolves to an empty page - in these cases return NA
-    ifelse(length(d), d, NA)
+    if(length(d)) d else NA
   },
   error = function(e) {
     NA
   })
+  
   return(posted_date)
 }
 
@@ -205,20 +209,18 @@ cr_ssrn_covid <- cr_ssrn_df %>%
   # Filter COVID-19 related preprints. SSRN metadata does not contain abstracts
   filter(str_detect(title, regex(search_string, ignore_case = TRUE))) %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
-  mutate(posted_date = as.Date(map_chr(doi, getSSRNPublicationDate))) %>%
-  # Select relevant fields to keep
-  mutate(source = "SSRN") %>%
-  select(source, doi, posted_date, title, abstract) %>%
+  mutate(posted_date = ymd(map_chr(doi, getSSRNPublicationDate)),
+         source = "SSRN") %>%
   # Keep only the first preprint where multiple preprints exist with the same title
   group_by(source, title) %>%
   arrange(posted_date) %>%
   slice(1) %>%
   ungroup() %>%
-  distinct()
+  distinct(source, doi, posted_date, title, abstract)
   
 ```
 
-The datasets derived from "posted-content" and from SSRN can then be merged to a final Crossref dataset
+The datasets derived from "posted-content" and from SSRN are merged to a final Crossref dataset
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
 
@@ -258,8 +260,7 @@ dois <- dc_dois(query = "types.resourceType:Preprint",
 total <- dois$meta$total
 
 #create pagination sequence
-seq <- seq(1, total, 1000)
-seq <- c(1:length(seq))
+seq <- c(1:ceiling(total/1000))
 
 #set counter for progress bar
 pb <- progress_estimated(length(seq))
