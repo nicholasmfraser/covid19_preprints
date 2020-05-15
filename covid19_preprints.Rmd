@@ -26,7 +26,6 @@ library(rcrossref)
 library(rdatacite)
 library(tidyverse)
 library(rvest)
-library(pals)
 
 ```
 
@@ -401,6 +400,11 @@ theme_set(theme_minimal() +
           plot.caption = element_text(size = 10, hjust = 0, color = "grey25", 
                                       margin = margin(20, 0, 0, 0))))
 
+# Create a nice color palette
+pal_1 <- colorspace::lighten(pals::tol(n = 10), amount = 0.2)
+pal_2 <- colorspace::lighten(pals::tol(n = 10), amount = 0.4)
+palette <- c(pal_1, pal_2)
+
 ```
 
 ```{r message = FALSE, warning = FALSE}
@@ -449,7 +453,7 @@ covid_preprints %>%
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
-  scale_fill_manual(values = pals::stepped3(n = 19)) +
+  scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 
 ```
@@ -477,7 +481,7 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
-  scale_fill_manual(values = pals::stepped3(n = 19)) +
+  scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 
 ```
@@ -506,7 +510,7 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
-  scale_fill_manual(values = pals::stepped3(n = 19)) +
+  scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
 
 ```
