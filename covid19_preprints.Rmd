@@ -33,7 +33,7 @@ library(rvest)
 
 ```{r}
 
-sample_date <- "2020-05-10"
+sample_date <- "2020-05-17"
 
 ```
 
