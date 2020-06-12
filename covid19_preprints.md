@@ -13,6 +13,7 @@ Currently, data are harvested from three sources:
 2.  DataCite (using the
     [rdatacite](https://github.com/ropensci/rcrossref) package)
 3.  arXiv (using the [aRxiv](https://github.com/ropensci/aRxiv) package)
+4.  RePEc (using the [oai](https://github.com/ropensci/oai) package)
 
 A description of the methods for harvesting data sources is provided in
 each relevant section below.
@@ -22,23 +23,23 @@ each relevant section below.
 ``` r
 library(aRxiv)
 library(lubridate)
+library(oai)
 library(ratelimitr)
 library(rcrossref)
 library(rdatacite)
 library(tidyverse)
 library(rvest)
-library(pals)
 ```
 
 # Set the latest sample date
 
 ``` r
-sample_date <- "2020-05-10"
+sample_date <- "2020-06-07"
 ```
 
 # Crossref
 
-Harvesting of Crossref metadata is easily achieved using the
+Harvesting of Crossref metadata is carried out using the
 [rcrossref](https://github.com/ropensci/rcrossref) package for R. In
 general, preprints are indexed in Crossref with the ‘type’ field given a
 value of ‘posted-content’. The `cr_types_` function can therefore be
@@ -58,7 +59,7 @@ cr_posted_content <- cr_types_(types = "posted-content",
                                limit = 1000, 
                                cursor = "*",
                                parse = TRUE,
-                               cursor_max = 100000)
+                               cursor_max = 1000000)
 ```
 
 Relevant preprint metadata fields are parsed from the list format
@@ -68,7 +69,7 @@ later used to match preprints to specific preprint repositories.
 
 ``` r
 # Function to parse posted "date parts" to more useful YYYY-MM-DD format
-parsePostedDate <- function(posted) {
+parseCrossrefPostedDate <- function(posted) {
   if(length(posted$`date-parts`[[1]]) == 3) {
     ymd(paste0(sprintf("%02d", unlist(posted$`date-parts`)), collapse = "-"))
   } else {
@@ -76,24 +77,26 @@ parsePostedDate <- function(posted) {
   }
 }
 
-# Function to parse preprint data to data frame
-parsePreprints <- function(item) {
+# Function to parse Crossref preprint data to data frame
+parseCrossrefPreprints <- function(item) {
   tibble(
-    institution = if(length(item$institution$name)) item$institution$name else NA,
+    institution = if(length(item$institution$name)) item$institution$name else NA_character_,
     publisher = item$publisher,
-    group_title = if(length(item$`group-title`)) item$`group-title` else NA,
+    group_title = if(length(item$`group-title`)) item$`group-title` else NA_character_,
     cr_member_id = item$member,
-    doi = item$DOI,
+    identifier = item$DOI,
+    identifier_type = "DOI",
     title = item$title[[1]],
     # For posted-content, use the 'posted' date fields for the relevant date. 
     # For SSRN preprints, use the 'created' date
-    posted_date = if(length(item$posted)) parsePostedDate(item$posted) else parsePostedDate(item$created),
+    posted_date = if(length(item$posted)) parseCrossrefPostedDate(item$posted) else parseCrossrefPostedDate(item$created),
     abstract = if(length(item$abstract)) item$abstract else NA
   )
 }
 
 # Iterate over posted-content list and build data frame
-cr_posted_content_df <- map_df(cr_posted_content, ~ map_df(.$message$items, parsePreprints))
+cr_posted_content_df <- map_dfr(cr_posted_content, 
+                                ~ map_df(.$message$items, parseCrossrefPreprints))
 ```
 
 In the final step, preprints are subsetted to include only those related
@@ -135,13 +138,14 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     group_title == "IndiaRxiv" ~ "IndiaRxiv (OSF)",
     group_title == "EcoEvoRxiv" ~ "EcoEvoRxiv (OSF)",
     group_title == "INA-Rxiv" ~ "INA-Rxiv (OSF)",
-    group_title == "MetaArxiv" ~ "MetaArXiv (OSF)",
+    group_title == "MetaArxiV" ~ "MetaArXiV (OSF)",
     group_title == "engrXiv" ~ "engrXiv (OSF)",
     group_title == "SportRxiv" ~ "SportRxiv (OSF)",
     group_title == "LawArXiv" ~ "LawArXiv (OSF)",
     group_title == "Frenxiv" ~ "Frenxiv (OSF)",
     group_title == "MetaArXiV" ~ "MetaArXiV (OSF)",
     group_title == "AgriXiv" ~ "AgriXiv (OSF)",
+    group_title == "BioHackrXiv" ~ "BioHackrXiv (OSF)",
     group_title == "Open Science Framework" ~ "OSF Preprints"
   )) %>%
   # Remove those that could not be unambiguously matched or do not seem to be
@@ -152,7 +156,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   # is usually appended with a version number, e.g. 10.1000/12345.v2. To ensure
   # only a single record is counted per preprint, the version number is
   # removed and only the earliest DOI record is kept
-  mutate(doi_clean = str_replace(doi, "\\.v.*|\\/v.*", "")) %>%
+  mutate(doi_clean = str_replace(identifier, "\\.v.*|\\/v.*", "")) %>%
   group_by(doi_clean) %>%
   arrange(posted_date) %>%
   slice(1) %>%
@@ -163,7 +167,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   slice(1) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
-  distinct(source, doi, posted_date, title, abstract)
+  distinct(source, identifier, identifier_type, posted_date, title, abstract)
 ```
 
 A side effect of the above procedure is that some preprint servers, most
@@ -181,10 +185,10 @@ cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
                     limit = 1000,
                     cursor = "*",
                     parse = TRUE,
-                    cursor_max = 100000)
+                    cursor_max = 1000000)
 
 # Iterate over SSRN list and build data frame
-cr_ssrn_df <- map_df(cr_ssrn, ~ map_df(.x$message$items, parsePreprints))
+cr_ssrn_df <- map_df(cr_ssrn, ~ map_dfr(.x$message$items, parseCrossrefPreprints))
 ```
 
 An inspection of the published dates of SSRN preprints indicates some
@@ -225,14 +229,14 @@ cr_ssrn_covid <- cr_ssrn_df %>%
   # Filter COVID-19 related preprints. SSRN metadata does not contain abstracts
   filter(str_detect(title, regex(search_string, ignore_case = TRUE))) %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
-  mutate(posted_date = ymd(map_chr(doi, getSSRNPublicationDate)),
+  mutate(posted_date = ymd(map_chr(identifier, getSSRNPublicationDate)),
          source = "SSRN") %>%
   # Keep only the first preprint where multiple preprints exist with the same title
   group_by(source, title) %>%
   arrange(posted_date) %>%
   slice(1) %>%
   ungroup() %>%
-  distinct(source, doi, posted_date, title, abstract)
+  distinct(source, identifier, identifier_type, posted_date, title, abstract)
 ```
 
 The datasets derived from “posted-content” and from SSRN are merged to a
@@ -298,7 +302,7 @@ columns ‘title’ and ‘descriptions’ are list columns and need to be
 processed further to extract the needed information.
 
 ``` r
-parseDescription <- function(x) {
+parseDataCiteDescription <- function(x) {
   if(length(x) > 0) {
     if(x$descriptionType == "Abstract") {
       return(str_to_sentence(str_c(x$description, collapse = "; ")))
@@ -312,13 +316,14 @@ parseDescription <- function(x) {
 
 parseDataCitePreprints <- function(item) {
   tibble(
-    doi = item$data$attributes$doi,
+    identifier = item$data$attributes$doi,
+    identifier_type = "DOI",
     posted_date = as.Date(item$data$attributes$created),
     client = item$data$relationships$client$data$id,
     title = map_chr(item$data$attributes$titles, 
                     ~ str_to_sentence(str_c(.x$title, collapse = "; "))),
     abstract = map_chr(item$data$attributes$descriptions, 
-                          function(x) parseDescription(x)))
+                          function(x) parseDataCiteDescription(x)))
 }
 
 dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints)
@@ -347,7 +352,7 @@ dc_covid <- dc_preprints_df %>%
   #(e.g.10.1000/12345.v2 and 10.1000/12345/1, respectively)
   # To ensure only a single record is counted per preprint, the version number is
   # removed and only the earliest DOI record is kept
-  mutate(doi_clean = str_replace(doi, "\\.v.*|\\/[0-9]$|\\/[1-9][0-9]$", "")) %>%
+  mutate(doi_clean = str_replace(identifier, "\\.v.*|\\/[0-9]$|\\/[1-9][0-9]$", "")) %>%
   group_by(doi_clean) %>%
   arrange(posted_date) %>%
   slice(1) %>%
@@ -359,7 +364,7 @@ dc_covid <- dc_preprints_df %>%
   slice(1) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
-  distinct(source, doi, posted_date, title, abstract)
+  distinct(source, identifier, identifier_type, posted_date, title, abstract)
 ```
 
 # arXiv
@@ -373,20 +378,73 @@ the relevant data
 ``` r
 # For returning details of preprints on arXiv, we can use the aRxiv package and
 # define title and abstract search strings
-ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2 ', limit = 10000) %>% 
+ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2', limit = 10000) %>% 
   mutate(source = "arXiv",
-         arxiv_id = id,
-         posted_date = ymd(submitted)) %>%
+         identifier = id,
+         identifier_type = "arXiv ID",
+         posted_date = date(submitted)) %>%
   filter(posted_date >= ymd("2020-01-01")) %>%
-  select(source, arxiv_id, posted_date, title, abstract) %>%
+  select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   distinct()
 ```
 
-# Create final dataset ((bind Crossref, DataCite and arXiv data)
+# RePEc
+
+RePEc is a repository for research papers in Economics, containing
+preprints as well as other research outputs (e.g. journal papers, books,
+software components). There exist a number of methods for accessing
+RePEc metadata, see an overview
+[here](https://ideas.repec.org/getdata.html). Here we access RePEc
+metadata using the (OAI-PMH)\[<https://www.openarchives.org/pmh/>\]
+inteface with the package [oai](https://github.com/ropensci/oai).
 
 ``` r
-covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid) %>%
-  select(source, doi, arxiv_id, posted_date, title, abstract) %>%
+# Get a list of all RePEc records posting between our dates
+repec_records <- oai::list_records("http://oai.repec.openlib.org", 
+                                   from = "2020-01-01", 
+                                   until = sample_date, 
+                                   as = "list")
+```
+
+Relevant metadata is extracted from each record, and only records with
+the “type” field of “preprint” are retained. Records contain either one
+or multiple “description” fields, the first of which generally (but not
+always) contains the abstract. For now we extract only this first
+description field.
+
+``` r
+parseRepecPreprints <- function(item) {
+    tibble(
+      type = if(length(item$metadata$type)) item$metadata$type else NA_character_,
+      source = "RePEc",
+      identifier = if(length(item$headers$identifier)) str_remove(item$headers$identifier, "oai:") else NA_character_,
+      identifier_type = "RePEc handle",
+      posted_date = if(length(item$headers$datestamp)) item$headers$datestamp else NA_character_,
+      title = if(length(item$metadata$title)) item$metadata$title else NA_character_,
+      abstract = if(length(item$metadata$description[1])) item$metadata$description[1] else NA_character_
+    )
+}
+
+repec_covid <- map_dfr(repec_records, function(x) parseRepecPreprints(x)) %>%
+  filter(type == "preprint") %>%
+  select(-type) %>%
+  filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
+         str_detect(abstract, regex(search_string, ignore_case = TRUE))) %>%
+  mutate(posted_date = ymd(posted_date)) %>%
+  # Some duplicates are contained - here we group by title and select the earliest record
+  group_by(title) %>%
+  arrange(posted_date) %>%
+  slice(1) %>%
+  ungroup() %>%
+  # Select only relevant fields with unique values
+  distinct(source, identifier, identifier_type, posted_date, title, abstract)
+```
+
+# Create final dataset ((bind Crossref, DataCite, arXiv and RePEc data)
+
+``` r
+covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
+  select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   filter(posted_date <= ymd(sample_date))
   
 #clean abstracts (remove jats-tags, remove leading string "Abstract" and similar)
@@ -411,12 +469,17 @@ theme_set(theme_minimal() +
           legend.text = element_text(size = 8),
           plot.caption = element_text(size = 10, hjust = 0, color = "grey25", 
                                       margin = margin(20, 0, 0, 0))))
+
+# Create a nice color palette
+pal_1 <- colorspace::lighten(pals::tol(n = 10), amount = 0.2)
+pal_2 <- colorspace::lighten(pals::tol(n = 10), amount = 0.4)
+palette <- c(pal_1, pal_2)
 ```
 
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 20
+n_min <- 30
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
@@ -458,11 +521,11 @@ covid_preprints %>%
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
-  scale_fill_manual(values = pals::stepped3(n = 19)) +
+  scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
 
 ``` r
 # Weekly preprint counts
@@ -486,11 +549,11 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date))) +
-  scale_fill_manual(values = pals::stepped3(n = 19)) +
+  scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 ``` r
 # Cumulative daily preprint counts
@@ -515,8 +578,8 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
-  scale_fill_manual(values = pals::stepped3(n = 19)) +
+  scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
