@@ -439,6 +439,8 @@ covid_preprints %>%
 release_date <- Sys.Date()
 
 # Create metadata as list
+metadata <- list()
+
 metadata$release_date <- release_date
 metadata$sample_date <- sample_date
 metadata$url <- "https://github.com/nicholasmfraser/covid19_preprints/blob/master/data/covid19_preprints.csv?raw=true"
