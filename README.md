@@ -1,6 +1,8 @@
 # COVID-19 Preprints
 
-This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time. Work by [Nicholas Fraser](https://orcid.org/0000-0002-7582-6339) and [Bianca Kramer](https://orcid.org/0000-0002-5965-6560).
+This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time. Work by [Nicholas Fraser](https://orcid.org/0000-0002-7582-6339) and [Bianca Kramer](https://orcid.org/0000-0002-5965-6560). 
+
+Preprint data is currently updated on a weekly schedule - details of these releases can be found in `data/metadata.json`, where `release_date` refers to the date on which data was collected, and `sample_date` the cut-off point for preprints to be included based on their posting date.
 
 A citable version of this repository is also available on figshare, here: [https://doi.org/10.6084/m9.figshare.12033672](https://doi.org/10.6084/m9.figshare.12033672).
 

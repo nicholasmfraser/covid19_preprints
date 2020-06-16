@@ -21,6 +21,9 @@ each relevant section below.
 # Load required packages
 
 ``` r
+# clear previous output
+rm(list=ls())
+
 library(aRxiv)
 library(lubridate)
 library(oai)
@@ -29,12 +32,13 @@ library(rcrossref)
 library(rdatacite)
 library(tidyverse)
 library(rvest)
+library(jsonlite)
 ```
 
 # Set the latest sample date
 
 ``` r
-sample_date <- "2020-06-07"
+sample_date <- "2020-06-14"
 ```
 
 # Crossref
@@ -456,6 +460,24 @@ covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
 ```
 
+# Create metadata file (json file with sample date and release date)
+
+``` r
+# Set system date as release date
+release_date <- Sys.Date()
+
+# Create metadata as list
+metadata <- list()
+
+metadata$release_date <- release_date
+metadata$sample_date <- sample_date
+metadata$url <- "https://github.com/nicholasmfraser/covid19_preprints/blob/master/data/covid19_preprints.csv?raw=true"
+
+# Save as json file
+metadata_json <- toJSON(metadata, pretty = TRUE, auto_unbox = TRUE)
+write(metadata_json, "data/metadata.json")
+```
+
 # Visualizations
 
 ``` r
@@ -525,7 +547,7 @@ covid_preprints %>%
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-18-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
 
 ``` r
 # Weekly preprint counts
@@ -553,7 +575,7 @@ covid_preprints %>%
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-19-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
 
 ``` r
 # Cumulative daily preprint counts
@@ -582,4 +604,4 @@ covid_preprints %>%
   ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
 ```
 
-![](covid19_preprints_files/figure-gfm/unnamed-chunk-20-1.png)<!-- -->
+![](covid19_preprints_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->

@@ -20,6 +20,9 @@ A description of the methods for harvesting data sources is provided in each rel
 
 ```{r message = FALSE, warning = FALSE}
 
+# clear previous output
+rm(list=ls())
+
 library(aRxiv)
 library(lubridate)
 library(oai)
@@ -36,7 +39,7 @@ library(jsonlite)
 
 ```{r}
 
-sample_date <- "2020-06-07"
+sample_date <- "2020-06-14"
 
 ```
 
