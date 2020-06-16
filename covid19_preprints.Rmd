@@ -28,6 +28,7 @@ library(rcrossref)
 library(rdatacite)
 library(tidyverse)
 library(rvest)
+library(jsonlite)
 
 ```
 
@@ -427,6 +428,26 @@ covid_preprints <- covid_preprints %>%
 
 covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
+
+```
+
+# Create metadata file (json file with sample date and release date)
+
+```{r message = FALSE, warning = FALSE, eval = FALSE}
+
+# Set system date as release date
+release_date <- Sys.Date()
+
+# Create metadata as list
+metadata <- list()
+
+metadata$release_date <- release_date
+metadata$sample_date <- sample_date
+metadata$url <- "https://github.com/nicholasmfraser/covid19_preprints/blob/master/data/covid19_preprints.csv?raw=true"
+
+# Save as json file
+metadata_json <- toJSON(metadata, pretty = TRUE, auto_unbox = TRUE)
+write(metadata_json, "data/metadata.json")
 
 ```
 
