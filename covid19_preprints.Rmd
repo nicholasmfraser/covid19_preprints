@@ -39,7 +39,7 @@ library(jsonlite)
 
 ```{r}
 
-sample_date <- "2020-06-21"
+sample_date <- "2020-06-28"
 
 ```
 
@@ -47,7 +47,7 @@ sample_date <- "2020-06-21"
 
 Harvesting of Crossref metadata is carried out using the [rcrossref](https://github.com/ropensci/rcrossref) package for R. In general, preprints are indexed in Crossref with the 'type' field given a value of 'posted-content'. The `cr_types_` function can therefore be used to retrieve all metadata related to records with the type of 'posted-content', filtered for the dates of this analysis (i.e. 2020-01-01 until present). Note that here, the 'low level' `cr_types_` function is used to return all metadata in list format, as this also includes some fields (e.g. abstract) that are not returned by the 'high level' `cr_types` function.
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 # Query posted content
 cr_posted_content <- cr_types_(types = "posted-content",
@@ -63,7 +63,7 @@ cr_posted_content <- cr_types_(types = "posted-content",
 
 Relevant preprint metadata fields are parsed from the list format returned in the previous step, to a more manageable data frame. Note the 'institution', 'publisher' and 'group-title' fields are retained, to be later used to match preprints to specific preprint repositories.
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 # Function to parse posted "date parts" to more useful YYYY-MM-DD format
 parseCrossrefPostedDate <- function(posted) {
@@ -95,11 +95,13 @@ parseCrossrefPreprints <- function(item) {
 cr_posted_content_df <- map_dfr(cr_posted_content, 
                                 ~ map_df(.$message$items, parseCrossrefPreprints))
 
+rm(cr_posted_content)
+
 ```
 
 In the final step, preprints are subsetted to include only those related to COVID-19, and the respective preprint repository of each identified.
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 # Build a search string containing terms related to COVID-19
 search_string <- "coronavirus|covid-19|sars-cov|ncov-2019|2019-ncov|hcov-19|sars-2"
@@ -171,7 +173,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
 
 A side effect of the above procedure is that some preprint servers, most notably SSRN, instead index their content with the 'type' set to 'journal-article', and are thus not included when querying only for 'posted-content' types. Metadata of SSRN preprints are thus instead harvested using the `cr_works_` function for the ISSN of SSRN (1556-5068).
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 # Query SSRN preprints
 cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
@@ -185,11 +187,13 @@ cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
 # Iterate over SSRN list and build data frame
 cr_ssrn_df <- map_df(cr_ssrn, ~ map_dfr(.x$message$items, parseCrossrefPreprints))
 
+rm(cr_ssrn)
+
 ```
 
 An inspection of the published dates of SSRN preprints indicates some abnormalities, e.g. on 24th March 2020, more than 5000 SSRN preprints were published according to dates from Crossref - the next highest day only has ~250 published preprints. Manual inspection of a small number suggests that the published date in Crossref does not correspond well to the actual published date according to the SSRN website. Thus, we can subset our set of SSRN preprints to those related to COVID-19 (to reduce the number of articles), and harvest more accurate publication dates by directly crawling the SSRN website (using the [rvest](https://github.com/tidyverse/rvest) package).
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 getSSRNPublicationDate <- function(doi) {
   
@@ -230,7 +234,7 @@ cr_ssrn_covid <- cr_ssrn_df %>%
 
 The datasets derived from "posted-content" and from SSRN are merged to a final Crossref dataset
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
 
@@ -242,7 +246,7 @@ For harvesting of Datacite metadata the [rdatacite](https://github.com/ropensci/
 
 Results can be filtered on date of creation (year only), which works fine for 2020 (but will need adaptation afterwards). Pagination is used to get all records.
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 #define function to query Datacite API
 getDataCite <- function(n){
@@ -282,7 +286,7 @@ rm(pb)
 
 Next, relevant preprint metadata fields are parsed from the list format returned in the previous step, to a more manageable data frame. Note that specific preprint repositories are encoded in the field 'client', and abstracts are included in the field 'descriptions'. The resulting columns 'title' and 'descriptions' are list columns and need to be processed further to extract the needed information. 
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 parseDataCiteDescription <- function(x) {
   if(length(x) > 0) {
@@ -310,11 +314,13 @@ parseDataCitePreprints <- function(item) {
 
 dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints)
 
+rm(dc_preprints)
+
 ```
 
 DataCite preprints are then subsetted to include only those related to COVID-19, and the respective preprint repository of each identified.
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 dc_covid <- dc_preprints_df %>%
   # Filter COVID-19 related preprints
@@ -355,7 +361,7 @@ dc_covid <- dc_preprints_df %>%
 
 ArXiv records are retrieved using the [aRxiv](https://github.com/ropensci/aRxiv) package. aRxiv provides a nice search functionality, so that we can search directly for our search terms in the titles and abstracts of arXiv preprints, and return only the relevant data
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 # For returning details of preprints on arXiv, we can use the aRxiv package and
 # define title and abstract search strings
@@ -374,7 +380,7 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
 
 RePEc is a repository for research papers in Economics, containing preprints as well as other research outputs (e.g. journal papers, books, software components). There exist a number of methods for accessing RePEc metadata, see an overview [here](https://ideas.repec.org/getdata.html). Here we access RePEc metadata using the (OAI-PMH)[https://www.openarchives.org/pmh/] inteface with the package [oai](https://github.com/ropensci/oai).
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 # Get a list of all RePEc records posting between our dates
 repec_records <- oai::list_records("http://oai.repec.openlib.org", 
@@ -386,7 +392,7 @@ repec_records <- oai::list_records("http://oai.repec.openlib.org",
 
 Relevant metadata is extracted from each record, and only records with the "type" field of "preprint" are retained. Records contain either one or multiple "description" fields, the first of which generally (but not always) contains the abstract. For now we extract only this first description field.
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 parseRepecPreprints <- function(item) {
     tibble(
@@ -414,11 +420,13 @@ repec_covid <- map_dfr(repec_records, function(x) parseRepecPreprints(x)) %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
+rm(repec_records)
+
 ```
 
 # Create final dataset ((bind Crossref, DataCite, arXiv and RePEc data)
 
-```{r message = FALSE, warning = FALSE, cache = TRUE, eval = FALSE}
+```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract) %>%
@@ -436,7 +444,7 @@ covid_preprints %>%
 
 # Create metadata file (json file with sample date and release date)
 
-```{r message = FALSE, warning = FALSE, eval = FALSE}
+```{r message = FALSE, warning = FALSE}
 
 # Set system date as release date
 release_date <- Sys.Date()
