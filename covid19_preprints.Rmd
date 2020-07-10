@@ -39,7 +39,7 @@ library(jsonlite)
 
 ```{r}
 
-sample_date <- "2020-06-28"
+sample_date <- "2020-07-05"
 
 ```
 
@@ -495,7 +495,7 @@ palette <- c(pal_1, pal_2)
 
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 30
+n_min <- 40
 
 # Repositories with < min preprints
 other <- covid_preprints %>%

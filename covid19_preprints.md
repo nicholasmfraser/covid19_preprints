@@ -38,7 +38,7 @@ library(jsonlite)
 # Set the latest sample date
 
 ``` r
-sample_date <- "2020-06-21"
+sample_date <- "2020-07-05"
 ```
 
 # Crossref
@@ -101,6 +101,8 @@ parseCrossrefPreprints <- function(item) {
 # Iterate over posted-content list and build data frame
 cr_posted_content_df <- map_dfr(cr_posted_content, 
                                 ~ map_df(.$message$items, parseCrossrefPreprints))
+
+rm(cr_posted_content)
 ```
 
 In the final step, preprints are subsetted to include only those related
@@ -193,6 +195,8 @@ cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
 
 # Iterate over SSRN list and build data frame
 cr_ssrn_df <- map_df(cr_ssrn, ~ map_dfr(.x$message$items, parseCrossrefPreprints))
+
+rm(cr_ssrn)
 ```
 
 An inspection of the published dates of SSRN preprints indicates some
@@ -331,6 +335,8 @@ parseDataCitePreprints <- function(item) {
 }
 
 dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints)
+
+rm(dc_preprints)
 ```
 
 DataCite preprints are then subsetted to include only those related to
@@ -442,6 +448,8 @@ repec_covid <- map_dfr(repec_records, function(x) parseRepecPreprints(x)) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
+
+rm(repec_records)
 ```
 
 # Create final dataset ((bind Crossref, DataCite, arXiv and RePEc data)
@@ -501,7 +509,7 @@ palette <- c(pal_1, pal_2)
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 30
+n_min <- 40
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
