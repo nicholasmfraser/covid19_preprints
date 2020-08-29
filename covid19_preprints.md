@@ -38,7 +38,7 @@ library(jsonlite)
 # Set the latest sample date
 
 ``` r
-sample_date <- "2020-07-12"
+sample_date <- "2020-08-23"
 ```
 
 # Crossref
