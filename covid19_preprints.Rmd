@@ -39,7 +39,7 @@ library(jsonlite)
 
 ```{r}
 
-sample_date <- "2020-08-23"
+sample_date <- "2020-08-30"
 
 ```
 
