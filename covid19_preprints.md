@@ -38,7 +38,7 @@ library(jsonlite)
 # Set the latest sample date
 
 ``` r
-sample_date <- "2020-09-06"
+sample_date <- "2020-09-13"
 ```
 
 # Crossref
@@ -124,6 +124,8 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   mutate(source = case_when(
     institution == "bioRxiv" ~ "bioRxiv",
     institution == "medRxiv" ~ "medRxiv",
+    institution == "Earth and Space Science Open Archive" ~ "ESSOAR",
+    institution == "ScienceOpen" ~ "ScienceOpen",
     publisher == "Research Square" ~ "Research Square",
     publisher == "MDPI AG" ~ "Preprints.org",
     publisher == "American Chemical Society (ACS)" ~ "ChemRxiv",
@@ -134,6 +136,8 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     publisher == "FapUNIFESP (SciELO)" ~ "SciELO",
     publisher == "Institute of Electrical and Electronics Engineers (IEEE)" ~ "Techrxiv (IEEE)",
     publisher == "Authorea, Inc." ~ "Authorea",
+    publisher == "Copernicus GmbH" ~ "Copernicus GmbH",
+    publisher == "Cambridge University Press (CUP)" ~ "Cambridge University Press",
     group_title == "PsyArXiv" ~ "PsyArXiv (OSF)",
     group_title == "NutriXiv" ~ "NutriXiv (OSF)",
     group_title == "SocArXiv" ~ "SocArXiv (OSF)",
@@ -144,7 +148,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     group_title == "IndiaRxiv" ~ "IndiaRxiv (OSF)",
     group_title == "EcoEvoRxiv" ~ "EcoEvoRxiv (OSF)",
     group_title == "INA-Rxiv" ~ "INA-Rxiv (OSF)",
-    group_title == "MetaArxiV" ~ "MetaArXiV (OSF)",
+    group_title == "MetaArXiv" ~ "MetaArXiV (OSF)",
     group_title == "engrXiv" ~ "engrXiv (OSF)",
     group_title == "SportRxiv" ~ "SportRxiv (OSF)",
     group_title == "LawArXiv" ~ "LawArXiv (OSF)",
