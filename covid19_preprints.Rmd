@@ -95,7 +95,7 @@ parseCrossrefPreprints <- function(item) {
 cr_posted_content_df <- map_dfr(cr_posted_content, 
                                 ~ map_df(.$message$items, parseCrossrefPreprints))
 
-rm(cr_posted_content)
+#rm(cr_posted_content)
 
 ```
 
