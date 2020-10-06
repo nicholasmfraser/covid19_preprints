@@ -38,7 +38,7 @@ library(jsonlite)
 # Set the latest sample date
 
 ``` r
-sample_date <- "2020-09-20"
+sample_date <- "2020-09-27"
 ```
 
 # Crossref
@@ -102,7 +102,7 @@ parseCrossrefPreprints <- function(item) {
 cr_posted_content_df <- map_dfr(cr_posted_content, 
                                 ~ map_df(.$message$items, parseCrossrefPreprints))
 
-rm(cr_posted_content)
+#rm(cr_posted_content)
 ```
 
 In the final step, preprints are subsetted to include only those related
@@ -513,7 +513,7 @@ palette <- c(pal_1, pal_2)
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many
 # categories/labels is confusing)
-n_min <- 40
+n_min <- 50
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
