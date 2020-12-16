@@ -39,7 +39,7 @@ library(jsonlite)
 
 ```{r}
 
-sample_date <- "2020-10-25"
+sample_date <- "2020-12-13"
 
 ```
 
@@ -64,7 +64,8 @@ cr_posted_content <- cr_types_(types = "posted-content",
                                limit = 1000, 
                                cursor = "*",
                                parse = TRUE,
-                               cursor_max = 1000000)
+                               cursor_max = 1000000,
+                               .progress = TRUE)
 
 cr_returned_results <- map_dbl(cr_posted_content, ~ length(.x$message$items)) %>% sum()
 
@@ -105,6 +106,9 @@ cr_posted_content_df <- map_dfr(cr_posted_content,
                                 ~ map_df(.$message$items, parseCrossrefPreprints))
 
 rm(cr_posted_content)
+
+#TEMP
+#write_csv(cr_posted_content_df, "cr_posted_content_df.csv")
 
 ```
 
@@ -181,6 +185,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   ungroup() %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
+
 
 ```
 
@@ -374,6 +379,7 @@ dc_covid <- dc_preprints_df %>%
   ungroup() %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
+
 
 ```
 
