@@ -2,7 +2,7 @@
 
 This repository contains code used to extract details of preprints related to COVID-19 and visualize their distribution over time. Work by [Nicholas Fraser](https://orcid.org/0000-0002-7582-6339) and [Bianca Kramer](https://orcid.org/0000-0002-5965-6560). 
 
-Preprint data is currently updated on a weekly schedule - details of these releases can be found in `data/metadata.json`, where `release_date` refers to the date on which data was collected, and `sample_date` the cut-off point for preprints to be included based on their posting date.
+Preprint data is currently updated on a weekly schedule - details of these releases can be found in `data/metadata.json`, where `release_date` refers to the date on which data was collected, and `sample_date` the cut-off point for preprints to be included based on the date their metadata record was created.
 
 A citable version of this repository is also available on figshare, here: [https://doi.org/10.6084/m9.figshare.12033672](https://doi.org/10.6084/m9.figshare.12033672).
 
@@ -22,10 +22,11 @@ For all sources, preprints are classified as being related to COVID-19 on the ba
 
 In some cases, multiple preprint metadata records are registered for a single preprint (e.g. ChemRxiv registers a new Crossref record for each new version of a preprint). In these cases, only the earliest posted version is included in this dataset. Additionally, some preprints are deposited to multiple preprint repositories - in these cases all preprint records are included.
 
-![Cumulative COVID-19 preprints](outputs/figures/covid19_preprints_day_cumulative.png)
+![Cumulative COVID-19 preprints](outputs/figures/covid19_preprints_day_cumulative_by_month.png)
+
+![COVID-19 preprints per month](outputs/figures/covid19_preprints_month.png)
 
 ![COVID-19 preprints per week](outputs/figures/covid19_preprints_week.png)
 
-![COVID-19 preprints per day](outputs/figures/covid19_preprints_day.png)  
 
 
