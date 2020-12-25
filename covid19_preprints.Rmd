@@ -35,32 +35,48 @@ library(jsonlite)
 
 ```
 
-# Set the latest sample date
 
-```{r}
+# Set sample date
+# Retrieve the latest sample date for preprints
 
-sample_date <- "2020-12-13"
+Note: run update from previous sample date (inclusive) to ensure no records are missed due to time zone differences on day of sampling. Deduplicate final dataset to filter out records that are sampled twice.
+
+```{r message = FALSE, warning = FALSE}
+#set sample_date_until
+sample_date_until <- "2020-12-20"
+
+sample_date_from <- fromJSON(
+  "https://raw.githubusercontent.com/nicholasmfraser/covid19_preprints/master/data/metadata.json"
+  ) 
+
+sample_date_from <- sample_date_from %>%
+  .$sample_date 
+#NB use date in character format for API queries
 
 ```
 
 # Crossref
 
-Harvesting of Crossref metadata is carried out using the [rcrossref](https://github.com/ropensci/rcrossref) package for R. In general, preprints are indexed in Crossref with the 'type' field given a value of 'posted-content'. The `cr_types_` function can therefore be used to retrieve all metadata related to records with the type of 'posted-content', filtered for the dates of this analysis (i.e. 2020-01-01 until present). Note that here, the 'low level' `cr_types_` function is used to return all metadata in list format, as this also includes some fields (e.g. abstract) that are not returned by the 'high level' `cr_types` function.
+Harvesting of Crossref metadata is carried out using the [rcrossref](https://github.com/ropensci/rcrossref) package for R. In general, preprints are indexed in Crossref with the 'type' field given a value of 'posted-content'. The `cr_types_` function can therefore be used to retrieve all metadata related to records with the type of 'posted-content', filtered for the period between the latest and current sample date of this analysis. 
+
+'Created date' is used for querying updates, so as not to miss any new entries with an older 'posted date'. Also, entries with a 'posted date' after the sample date are not filtered out, as these will not be retrieved in subsequent updated when using 'created date'. 
+
+Note that here, the 'low level' `cr_types_` function is used to return all metadata in list format, as this also includes some fields (e.g. abstract) that are not returned by the 'high level' `cr_types` function.
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 cr_expected_results <- cr_types(types = "posted-content",
                                 works = TRUE,
                                 limit = 1,
-                                filter = c(from_posted_date = "2020-01-01", 
-                                           until_posted_date = sample_date)
+                                filter = c(from_created_date = sample_date_from, 
+                                           until_created_date = sample_date_until)
                                 )$meta$total_results
 
 # Query posted content
 cr_posted_content <- cr_types_(types = "posted-content",
                                works = TRUE, 
-                               filter = c(from_posted_date = "2020-01-01", 
-                                          until_posted_date = sample_date),
+                               filter = c(from_created_date = sample_date_from, 
+                                          until_created_date = sample_date_until),
                                limit = 1000, 
                                cursor = "*",
                                parse = TRUE,
@@ -107,8 +123,6 @@ cr_posted_content_df <- map_dfr(cr_posted_content,
 
 rm(cr_posted_content)
 
-#TEMP
-#write_csv(cr_posted_content_df, "cr_posted_content_df.csv")
 
 ```
 
@@ -168,24 +182,12 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   # Remove those that could not be unambiguously matched or do not seem to be
   # "true" preprints
   filter(!is.na(source)) %>%
-  # Some preprints have multiple DOI records relating to multiple preprint
-  # versions (mainly in ChemRxiv and Preprints.org). In these cases the DOI 
-  # is usually appended with a version number, e.g. 10.1000/12345.v2. To ensure
-  # only a single record is counted per preprint, the version number is
-  # removed and only the earliest DOI record is kept
-  mutate(doi_clean = str_replace(identifier, "\\.v.*|\\/v.*", "")) %>%
-  group_by(doi_clean) %>%
-  arrange(posted_date) %>%
-  slice(1) %>%
-  ungroup() %>%
-  # Additionally filter preprints with the same title posted on the same server
-  group_by(source, title) %>%
-  arrange(posted_date) %>%
-  slice(1) %>%
-  ungroup() %>%
+  # Filter on preprints posted after 2020-01-01
+  filter((posted_date >= "2020-01-01")) %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
-
+  
+rm(cr_posted_content_df)
 
 ```
 
@@ -193,19 +195,21 @@ A side effect of the above procedure is that some preprint servers, most notably
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-cr_ssrn_expected_results <- cr_works(filter = c(issn = "1556-5068",
-                                                from_created_date = "2020-01-01", 
-                                                until_created_date = sample_date), 
-                                     limit = 1)$meta$total_results
+cr_ssrn_expected_results <- cr_works(
+  filter = c(issn = "1556-5068",
+             from_created_date = sample_date_from,
+             until_created_date = sample_date_until),
+  limit = 1)$meta$total_results
 
 # Query SSRN preprints
-cr_ssrn <- cr_works_(filter = c(issn = "1556-5068",
-                                from_created_date = "2020-01-01", 
-                                until_created_date = sample_date), 
-                     limit = 1000,
-                     cursor = "*",
-                     parse = TRUE,
-                     cursor_max = cr_ssrn_expected_results)
+cr_ssrn <- cr_works_(
+  filter = c(issn = "1556-5068",
+             from_created_date = sample_date_from,
+             until_created_date = sample_date_until),
+  limit = 1000,
+  cursor = "*",
+  parse = TRUE,
+  cursor_max = cr_ssrn_expected_results)
 
 cr_ssrn_returned_results <- map_dbl(cr_ssrn, ~ length(.x$message$items)) %>% sum()
 
@@ -248,28 +252,31 @@ cr_ssrn_covid <- cr_ssrn_df %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
   mutate(posted_date = ymd(map_chr(identifier, getSSRNPublicationDate)),
          source = "SSRN") %>%
-  # Keep only the first preprint where multiple preprints exist with the same title
-  group_by(source, title) %>%
-  arrange(posted_date) %>%
-  slice(1) %>%
-  ungroup() %>%
+  #filter on preprints with posted date since 2020
+  filter((posted_date >= "2020-01-01")) %>%
+   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
   
+rm(cr_ssrn_df)  
+ 
 ```
 
 The datasets derived from "posted-content" and from SSRN are merged to a final Crossref dataset
 
-```{r message = FALSE, warning = FALSE, cache = TRUE}
+```{r message = FALSE, warning = FALSE}
 
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
 
+rm(cr_posted_content_covid, cr_ssrn_covid)
+
 ```
+
 
 # DataCite
 
 For harvesting of Datacite metadata the [rdatacite](https://github.com/ropensci/rcrossref) package for R was used. In general, preprints are indexed in Datacite with the 'resourceType' field set to 'Preprint'. This field is not strictly controlled though, so not all preprints will be caught this way. 
 
-Results can be filtered on date of creation (year only), which works fine for 2020 (but will need adaptation afterwards). Pagination is used to get all records.
+Results can be filtered on date of creation (year only), which works fine for 2020 (but will need adaptation afterwards).This means that it's not possible to only query results from last sample date onwards. Pagination is used to get all records.
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
@@ -347,6 +354,7 @@ DataCite preprints are then subsetted to include only those related to COVID-19,
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
+
 dc_covid <- dc_preprints_df %>%
   # Filter COVID-19 related preprints
   filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
@@ -360,26 +368,10 @@ dc_covid <- dc_preprints_df %>%
     TRUE ~ NA_character_)) %>%
   # Remove those that could not be unambiguously matched
   filter(!is.na(source)) %>%
-  # Some preprints have multiple DOI records relating to multiple preprint
-  # versions. It differs how this is reflected in the DOIs. 
-  # In Figshare and ResearchGate, the DOI is appended with a version number
-  #(e.g.10.1000/12345.v2 and 10.1000/12345/1, respectively)
-  # To ensure only a single record is counted per preprint, the version number is
-  # removed and only the earliest DOI record is kept
-  mutate(doi_clean = str_replace(identifier, "\\.v.*|\\/[0-9]$|\\/[1-9][0-9]$", "")) %>%
-  group_by(doi_clean) %>%
-  arrange(posted_date) %>%
-  slice(1) %>%
-  ungroup() %>%
-  # Additionally filter preprints with the same title posted on the same server
-  # This will also address versioning on Zenodo, where consecutive DOIs are used
-  group_by(source, title) %>%
-  arrange(posted_date) %>%
-  slice(1) %>%
-  ungroup() %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
-
+  
+rm(dc_preprints_df)
 
 ```
 
@@ -391,14 +383,15 @@ ArXiv records are retrieved using the [aRxiv](https://github.com/ropensci/aRxiv)
 
 # For returning details of preprints on arXiv, we can use the aRxiv package and
 # define title and abstract search strings
-ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2', limit = 10000) %>% 
+ar_covid_new <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2', limit = 10000) %>%
   mutate(source = "arXiv",
          identifier = id,
          identifier_type = "arXiv ID",
          posted_date = date(submitted)) %>%
-  filter(posted_date >= ymd("2020-01-01")) %>%
-  select(source, identifier, identifier_type, posted_date, title, abstract) %>%
-  distinct()
+  # Filter preprints submitted in sampling period
+  filter((posted_date >= sample_date_from) & (posted_date <= sample_date_until)) %>%
+  # Select only relevant fields with unique values
+  distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
 ```
 
@@ -435,45 +428,91 @@ getRepecPreprints <- function(start_date, end_date) {
 
 # Create two vectors of dates - the start and end day for each month for which 
 # data should be extracted
-start_dates <- seq(ymd('2020-01-01'), 
-                   floor_date(ymd(sample_date), "months"), 
-                   by = '1 month')
+#start_dates <- seq(ymd('2020-01-01'), 
+#                   floor_date(ymd(sample_date), "months"), 
+#                   by = '1 month')
 
-end_dates <- c(seq(ymd('2020-02-01'), 
-               floor_date(ymd(sample_date), "months"),  
-               by = '1 month') - 1, sample_date)
+#end_dates <- c(seq(ymd('2020-02-01'), 
+#               floor_date(ymd(sample_date), "months"),  
+#              by = '1 month') - 1, sample_date)
 
-repec_covid <- map2_dfr(start_dates, end_dates, getRepecPreprints) %>%
+
+#repec_covid <- map2_dfr(start_dates, end_dates, getRepecPreprints)
+
+repec_covid <- getRepecPreprints(sample_date_from,
+                                      sample_date_until) %>% 
+  bind_rows() %>%
   filter(type == "preprint") %>%
   select(-type) %>%
   filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
          str_detect(abstract, regex(search_string, ignore_case = TRUE))) %>%
   mutate(posted_date = ymd(posted_date)) %>%
-  # Some duplicates are contained - here we group by title and select the earliest record
-  group_by(title) %>%
-  arrange(posted_date) %>%
-  slice(1) %>%
-  ungroup() %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
 ```
 
-# Create final dataset ((bind Crossref, DataCite, arXiv and RePEc data)
+# Create combined dataset ((bind Crossref, DataCite, arXiv and RePEc data)
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
-  select(source, identifier, identifier_type, posted_date, title, abstract) %>%
-  filter(posted_date <= ymd(sample_date))
+covid_preprints_update <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
+  select(source, identifier, identifier_type, posted_date, title, abstract)
+#NB DO not remove preprints with posted_date after sample date, as these will (for Crossref) not be retrieved anew in subsequent updates.
   
 #clean abstracts (remove jats-tags, remove leading string "Abstract" and similar)
-covid_preprints <- covid_preprints %>%
+covid_preprints_update <- covid_preprints_update %>%
   mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>")) %>%
-  mutate(abstract = str_remove_all(abstract, "<.*?>"))  
+  mutate(abstract = str_remove_all(abstract, "<.*?>"))
 
-covid_preprints %>%
-  write_csv("data/covid19_preprints.csv")
+```
+
+# Combine with previous dataset, deduplicate preprint versions
+
+```{r message = FALSE, warning = FALSE, cache = TRUE}
+
+covid_preprints_previous <- read_csv("data/covid19_preprints.csv")
+
+covid_preprints <- bind_rows(covid_preprints_previous,
+                             covid_preprints_update)
+
+#Remove duplicate records
+covid_preprints <- covid_preprints %>%
+  # Some preprints have been sampled twice due to inclusive sample dates
+  distinct() %>%
+  # Some preprints have multiple records relating to multiple preprint versions.In many cases, the the DOI or other identifier is appended with a version number. This is the case for Authorea, ChemRxiv, Cambridge Engage, Essoar, Preprints.org, ResearchSquare, SAGE advance, ScienceOpen and Techrxiv (from Crossref), for Figshare and ResearchGate (from DataCite) and for arXiv.
+  #Syntax used for appended version numbers varies, e.g. 10.1000/12345.v2, 10.1000/12345/v2, 10.1000/12345-v2, 2012.01234v2, 10.1000/12345/2 or 10.1000/12345.2
+  # To ensure only a single record is counted per preprint, the version number is removed and only the earliest record is kept
+   # Remove .v2, /v2 and -v2 at the end of a string, with a maximum of 3 digits
+  mutate(
+    identifier_clean = str_remove(
+      identifier,
+      "[\\.\\/\\-]v[0-9]{1,3}$")) %>%
+   # Remove v2 at the end of a string, with a maximum of 2 digits, only for arXiv records (to prevent removal of strings that are not version numbers, e.g.in OSF records)
+  mutate(identifier_clean = case_when(
+    source == "arXiv" ~ str_remove(
+      identifier,
+      "v[0-9]{1,2}$"),
+    TRUE ~ identifier_clean)) %>%
+  # Remove .2 and /2 at the end of a string, with a maximum of 2 digits, only for Essoar and ResearchGate records (to prevent removal of strings that are not version numbers, e.g.in Repec and Scielo records)
+  mutate(identifier_clean = case_when(
+    source %in% c("ESSOAR", "ResearchGate") ~ str_remove(
+      identifier,
+       "[\\.\\/][0-9]{1,2}$"),
+    TRUE ~ identifier_clean)) %>%
+  # For preprints with version numbers, keep only earliest version 
+  group_by(identifier_clean) %>%
+  arrange(posted_date) %>%
+  slice(1) %>%
+  ungroup() %>%
+  select(-identifier_clean) %>%
+  # Additionally filter preprints with the same title posted on the same server
+  group_by(source, title) %>%
+  arrange(posted_date) %>%
+  slice(1) %>%
+  ungroup()
+
+write_csv(covid_preprints, "data/covid19_preprints.csv")
 
 ```
 
@@ -488,7 +527,7 @@ release_date <- Sys.Date()
 metadata <- list()
 
 metadata$release_date <- release_date
-metadata$sample_date <- sample_date
+metadata$sample_date <- sample_date_until
 metadata$url <- "https://github.com/nicholasmfraser/covid19_preprints/blob/master/data/covid19_preprints.csv?raw=true"
 
 # Save as json file
@@ -554,6 +593,10 @@ other_text = paste0("* 'Other' refers to preprint repositories  containing <",
 
 other_caption <- str_wrap(other_text, width = 150)
 
+```
+
+```{r message = FALSE, warning = FALSE}
+
 # Daily preprint counts
 covid_preprints %>%
   mutate(source = case_when(
@@ -566,12 +609,12 @@ covid_preprints %>%
   geom_col() +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints per day",
-       subtitle = paste0("(up until ", sample_date, ")"),
+       subtitle = paste0("(up until ", sample_date_until, ")"),
        caption = other_caption) +
   scale_x_date(date_breaks = "7 days",
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date_until) + 1)) +
   scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 
@@ -595,11 +638,11 @@ covid_preprints %>%
   geom_col() +
   labs(x = "Posted Date (week beginning)", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints per week", 
-       subtitle = paste0("(up until ", sample_date, ")"),
+       subtitle = paste0("(up until ", sample_date_until, ")"),
        caption = other_caption) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0, 0),
-               limits = c(ymd("2020-01-13"), ymd(sample_date))) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date_until))) +
   scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 
@@ -607,7 +650,35 @@ covid_preprints %>%
 
 ```{r message = FALSE, warning = FALSE}
 
-# Cumulative daily preprint counts
+# Monthly preprint counts
+covid_preprints %>%
+  mutate(
+    source = case_when(
+      source %in% other ~ "Other*",
+      T ~ source
+    ),
+    source = factor(source, levels = fct_levels),
+    posted_month = ymd(cut(posted_date,
+                          breaks = "month"))) %>%
+  count(source, posted_month) %>%
+  ggplot(aes(x = posted_month, y = n, fill = source)) +
+  geom_col() +
+  labs(x = "Posted Date", y = "Preprints", fill = "Source",
+       title = "COVID-19 preprints per month", 
+       subtitle = paste0("(up until ", sample_date_until, ")"),
+       caption = other_caption) +
+  scale_x_date(date_breaks = "1 month",
+               expand = c(0, 0),
+               limits = c(ymd("2020-01-13"), ymd(sample_date_until))) +
+  scale_fill_manual(values = palette) +
+  ggsave("outputs/figures/covid19_preprints_month.png", width = 12, height = 6)
+
+```
+
+
+```{r message = FALSE, warning = FALSE}
+
+# Cumulative daily preprint counts, by week
 covid_preprints %>%
   mutate(source = case_when(
       source %in% other ~ "Other*",
@@ -623,14 +694,42 @@ covid_preprints %>%
   geom_area(aes(x = posted_date, y = cumulative_n, fill = source)) +
   labs(x = "Posted Date", y = "Preprints", fill = "Source",
        title = "COVID-19 preprints (cumulative)", 
-       subtitle = paste0("(up until ", sample_date, ")"),
+       subtitle = paste0("(up until ", sample_date_until, ")"),
        caption = other_caption) +
   scale_y_continuous(labels = scales::comma) +
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date_until) + 1)) +
   scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
 
 ```
 
+```{r message = FALSE, warning = FALSE}
+
+# Cumulative daily preprint counts, by month
+covid_preprints %>%
+  mutate(source = case_when(
+      source %in% other ~ "Other*",
+      T ~ source
+    ),
+    source = factor(source, levels = fct_levels)) %>%
+  count(source, posted_date) %>%
+  complete(posted_date, nesting(source), fill = list(n = 0)) %>%
+  group_by(source) %>%
+  arrange(posted_date) %>%
+  mutate(cumulative_n = cumsum(n)) %>%
+  ggplot() +
+  geom_area(aes(x = posted_date, y = cumulative_n, fill = source)) +
+  labs(x = "Posted Date", y = "Preprints", fill = "Source",
+       title = "COVID-19 preprints (cumulative)", 
+       subtitle = paste0("(up until ", sample_date_until, ")"),
+       caption = other_caption) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_breaks = "1 month",
+               expand = c(0.01, 0),
+               limits = c(ymd("2020-01-01"), ymd(sample_date_until) + 1)) +
+  scale_fill_manual(values = palette) +
+  ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
+
+```
