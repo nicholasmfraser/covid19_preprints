@@ -10,7 +10,7 @@ This file contains code used to harvest metadata of COVID-19 related preprints.
 Currently, data are harvested from three sources:
 
 1. Crossref (using the [rcrossref](https://github.com/ropensci/rcrossref) package)
-2. DataCite (using the [rdatacite](https://github.com/ropensci/rcrossref) package)
+2. DataCite (using the [rdatacite](https://github.com/ropensci/rdatacite) package)
 3. arXiv (using the [aRxiv](https://github.com/ropensci/aRxiv) package)
 4. RePEc (using the [oai](https://github.com/ropensci/oai) package)
 
@@ -39,7 +39,7 @@ library(jsonlite)
 
 ```{r}
 
-sample_date <- "2020-12-13"
+sample_date <- "2021-01-10"
 
 ```
 
@@ -107,8 +107,6 @@ cr_posted_content_df <- map_dfr(cr_posted_content,
 
 rm(cr_posted_content)
 
-#TEMP
-#write_csv(cr_posted_content_df, "cr_posted_content_df.csv")
 
 ```
 
@@ -186,6 +184,8 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
+rm(cr_posted_content_df)
+
 
 ```
 
@@ -254,6 +254,8 @@ cr_ssrn_covid <- cr_ssrn_df %>%
   slice(1) %>%
   ungroup() %>%
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
+
+rm(cr_ssrn_df)
   
 ```
 
@@ -263,49 +265,50 @@ The datasets derived from "posted-content" and from SSRN are merged to a final C
 
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
 
+rm(cr_posted_content_covid, cr_ssrn_covid)
+
 ```
 
 # DataCite
 
 For harvesting of Datacite metadata the [rdatacite](https://github.com/ropensci/rcrossref) package for R was used. In general, preprints are indexed in Datacite with the 'resourceType' field set to 'Preprint'. This field is not strictly controlled though, so not all preprints will be caught this way. 
 
-Results can be filtered on date of creation (year only), which works fine for 2020 (but will need adaptation afterwards). Pagination is used to get all records.
+Results can be filtered on date of creation (year only). Pagination is used to get all records.
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 #define function to query Datacite API
-getDataCite <- function(n){
+getDataCite <- function(year, n){
   res <- dc_dois(query = "types.resourceType:Preprint", 
-                 created = "2020",
+                 created = year,
                  limit = 1000,
                  page = n)
 }  
 
 
-#define function to add progress bar
-getDataCite_progress <- function(n){
-  pb$tick()$print()
-  res <- getDataCite(n)
-  
+#define function to execute query 
+runDataCiteQuery <- function(year){
+  #initial query to get number of results for pagination
+  dois <- dc_dois(query = "types.resourceType:Preprint", 
+                created = year,
+                limit = 1)
+  total <- dois$meta$total
+  #create pagination sequence
+  seq <- c(1:ceiling(total/1000))
+  #get datacite results
+  res <- map2(year, seq, getDataCite)
+
   return(res)
 }
 
-#initial query to get number of results for pagination
-dois <- dc_dois(query = "types.resourceType:Preprint", 
-                created = "2020",
-                limit = 1)
-total <- dois$meta$total
-
-#create pagination sequence
-seq <- c(1:ceiling(total/1000))
-
-#set counter for progress bar
-pb <- progress_estimated(length(seq))
+#specify years to include
+dc_years <- c("2020", "2021")
 
 #get datacite results
-dc_preprints <- map(seq, getDataCite_progress)
+dc_preprints <- map(dc_years, runDataCiteQuery) %>%
+  purrr::flatten()
 
-rm(pb)
+rm(dc_years)
 
 ```
 
@@ -380,6 +383,7 @@ dc_covid <- dc_preprints_df %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
+rm(dc_preprints_df)
 
 ```
 
@@ -397,6 +401,7 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
          identifier_type = "arXiv ID",
          posted_date = date(submitted)) %>%
   filter(posted_date >= ymd("2020-01-01")) %>%
+  filter(posted_date <= ymd(sample_date)) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   distinct()
 
@@ -433,8 +438,7 @@ getRepecPreprints <- function(start_date, end_date) {
 }
 
 
-# Create two vectors of dates - the start and end day for each month for which 
-# data should be extracted
+# Create two vectors of dates - the start and end day for each month for which data should be extracted
 start_dates <- seq(ymd('2020-01-01'), 
                    floor_date(ymd(sample_date), "months"), 
                    by = '1 month')
@@ -456,6 +460,8 @@ repec_covid <- map2_dfr(start_dates, end_dates, getRepecPreprints) %>%
   ungroup() %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
+
+rm(start_dates, end_dates)
 
 ```
 
@@ -605,9 +611,40 @@ covid_preprints %>%
 
 ```
 
+
 ```{r message = FALSE, warning = FALSE}
 
-# Cumulative daily preprint counts
+# Monthly preprint counts
+p1 <- covid_preprints %>%
+  mutate(
+    source = case_when(
+      source %in% other ~ "Other*",
+      T ~ source
+    ),
+    source = factor(source, levels = fct_levels),
+    posted_month = ymd(cut(posted_date,
+                          breaks = "month"))) %>%
+  count(source, posted_month) %>%
+  ggplot(aes(x = posted_month, y = n, fill = source)) +
+  geom_col() +
+  labs(x = "Posted Date", y = "Preprints", fill = "Source",
+       title = "COVID-19 preprints per month", 
+       subtitle = paste0("(up until ", sample_date, ")"),
+       caption = other_caption) +
+  scale_x_date(date_breaks = "1 month",
+               expand = c(0, 0),
+               limits = c(ymd("2020-01-13"),
+                          ceiling_date(ymd(sample_date), 
+                                       "month") - days(1))) +
+  scale_fill_manual(values = palette) +
+  ggsave("outputs/figures/covid19_preprints_month.png", width = 12, height = 6)
+
+```
+
+
+```{r message = FALSE, warning = FALSE}
+
+# Cumulative daily preprint counts, by week
 covid_preprints %>%
   mutate(source = case_when(
       source %in% other ~ "Other*",
@@ -630,7 +667,36 @@ covid_preprints %>%
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
   scale_fill_manual(values = palette) +
-  ggsave("outputs/figures/covid19_preprints_day_cumulative.png", width = 12, height = 6)
+  ggsave("outputs/figures/covid19_preprints_day_cumulative_by_week.png", width = 12, height = 6)
 
 ```
 
+
+```{r message = FALSE, warning = FALSE}
+
+# Cumulative daily preprint counts, by month
+covid_preprints %>%
+  mutate(source = case_when(
+      source %in% other ~ "Other*",
+      T ~ source
+    ),
+    source = factor(source, levels = fct_levels)) %>%
+  count(source, posted_date) %>%
+  complete(posted_date, nesting(source), fill = list(n = 0)) %>%
+  group_by(source) %>%
+  arrange(posted_date) %>%
+  mutate(cumulative_n = cumsum(n)) %>%
+  ggplot() +
+  geom_area(aes(x = posted_date, y = cumulative_n, fill = source)) +
+  labs(x = "Posted Date", y = "Preprints", fill = "Source",
+       title = "COVID-19 preprints (cumulative)", 
+       subtitle = paste0("(up until ", sample_date, ")"),
+       caption = other_caption) +
+  scale_y_continuous(labels = scales::comma) +
+  scale_x_date(date_breaks = "1 month",
+               expand = c(0.01, 0),
+               limits = c(ymd("2020-01-01"), ymd(sample_date) + 1)) +
+  scale_fill_manual(values = palette) +
+  ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
+
+```
