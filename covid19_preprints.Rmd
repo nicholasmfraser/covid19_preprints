@@ -615,7 +615,7 @@ covid_preprints %>%
 ```{r message = FALSE, warning = FALSE}
 
 # Monthly preprint counts
-p1 <- covid_preprints %>%
+covid_preprints %>%
   mutate(
     source = case_when(
       source %in% other ~ "Other*",
