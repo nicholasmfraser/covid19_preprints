@@ -1,0 +1,103 @@
+---
+title: "R Notebook"
+---
+
+# Setup
+
+```{r}
+
+# Load libraries
+library(tidyverse)
+
+# Default theme options
+theme_set(theme_minimal() +
+          theme(text = element_text(size = 12),
+          axis.text.x = element_text(angle = 90, vjust = 0.5),
+          axis.title.x = element_text(margin = margin(20, 0, 0, 0)),
+          axis.title.y = element_text(margin = margin(0, 20, 0, 0)),
+          legend.key.size = unit(0.5, "cm"),
+          legend.text = element_text(size = 8),
+          plot.caption = element_text(size = 10, hjust = 0, color = "grey25", 
+                                      margin = margin(20, 0, 0, 0))))
+
+# Load data
+covid_preprints <- read_csv("data/covid19_preprints.csv")
+
+```
+
+# Explore duplicate entries
+
+```{r}
+# Generate a dataset of unique titles occurring in the same repository
+unique_titles <- covid_preprints %>%
+  # Clean titles - remove tags, whitespace, convert to lowercase
+  mutate(title = str_remove_all(title, "<.*?>"),
+         title = str_squish(tolower(title))) %>%
+  distinct(identifier, source, title)
+
+# Here we calculate the number of duplicate records within the same repositories
+# First we join the dataset created above to itself on exact title matches,
+# then filter for records with the same source but different identifier. 
+# We then calculate: (A) the number of unique titles within each source that
+# are duplicated, and (B) the total number of records affected. E.g. if a title
+# occurs 3 times in the same repository, it will count as a single unique title,
+# affecting 3 records.
+
+unique_titles %>%
+  inner_join(unique_titles, by = "title") %>%
+  filter(source.x == source.y,
+         identifier.x != identifier.y)  %>%
+  group_by(source.x) %>%
+  summarize(
+    n_unique = n_distinct(title),
+    n = n()
+  ) %>%
+  ungroup() %>%
+  pivot_longer(n_unique:n) %>%
+  mutate(
+    name = factor(name,
+                  levels = c("n_unique", "n"),
+                  labels = c("Number of unique titles",
+                             "Number of records affected"))
+  ) %>%
+  ggplot(aes(x = source.x, y = value)) +
+  geom_col(fill = "grey75", color = "grey50") +
+  labs(
+    title = "Duplicate preprint records occuring in the same repository (exact title matching)",
+    x = "", y = "") +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0, hjust = 1),
+        panel.spacing.x = unit(1, "cm"),
+        panel.background = element_rect(color = "grey90")) +
+  facet_wrap(~ name) +
+  ggsave("outputs/figures/covid19_preprints_duplicates_within_repository.png", 
+         width = 12, height = 6)
+
+# Here we calculate the number of duplicate records occurring across different
+# preprint repositories. As before, we join the dataset initially created to 
+# itself based on exact title matching, then filter for records with different
+# sources. The total number of affected records is counted and displayed in a 
+# heatmap.
+unique_titles %>%
+  inner_join(unique_titles, by = "title") %>%
+  filter(source.x != source.y) %>%
+  group_by(source.x, source.y) %>%
+  filter(source.x < source.y) %>%
+  count(source.x, source.y) %>%
+  ggplot(aes(x = source.x, y = source.y, fill = n)) +
+  geom_tile() +
+  geom_text(aes(label = n), size = 4) +
+  labs(
+    title = "Duplicates in different repositories (exact title matching)",
+    x = "", y = "") +
+  scale_y_discrete(limits=rev) +
+  scale_fill_gradient(low = "#FFFFE0", high = "#FF0000", na.value = NA) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 90, vjust = 0, hjust = 1),
+        legend.position = "none") +
+  ggsave("outputs/figures/covid19_preprints_duplicates_across_repository.png", 
+         width = 12, height = 10)
+
+```
+
+```
+

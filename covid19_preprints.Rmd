@@ -473,10 +473,11 @@ covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   filter(posted_date <= ymd(sample_date))
   
-#clean abstracts (remove jats-tags, remove leading string "Abstract" and similar)
+# Remove tags from abstracts and titles
 covid_preprints <- covid_preprints %>%
-  mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>")) %>%
-  mutate(abstract = str_remove_all(abstract, "<.*?>"))  
+  mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>"),
+         abstract = str_remove_all(abstract, "<.*?>"),
+         title = str_remove_all(abstract, "<.*?>"))
 
 covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
