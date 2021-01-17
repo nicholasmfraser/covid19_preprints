@@ -57,7 +57,7 @@ unique_titles %>%
   mutate(
     name = factor(name,
                   levels = c("n_unique", "n"),
-                  labels = c("Number of unique titles",
+                  labels = c("Number of non-unique titles",
                              "Number of records affected"))
   ) %>%
   ggplot(aes(x = source.x, y = value)) +
