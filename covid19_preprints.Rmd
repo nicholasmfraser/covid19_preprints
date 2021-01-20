@@ -475,9 +475,9 @@ covid_preprints <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
   
 # Remove tags from abstracts and titles
 covid_preprints <- covid_preprints %>%
-  mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>"),
+  mutate(abstract = str_remove_all(abstract, "<jats:title>.*?</jats:title>"), # remove JATS tags
          abstract = str_remove_all(abstract, "<.*?>"),
-         title = str_remove_all(abstract, "<.*?>"))
+         title = str_remove_all(title, "<.*?>"))
 
 covid_preprints %>%
   write_csv("data/covid19_preprints.csv")
