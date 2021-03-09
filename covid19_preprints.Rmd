@@ -41,7 +41,7 @@ library(tidyverse)
 
 ```{r}
 
-sample_date <- "2021-01-31"
+sample_date <- "2021-02-28"
 
 ```
 
@@ -249,6 +249,7 @@ The datasets derived from "posted-content" and from SSRN are merged to a final C
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
 
 rm(cr_posted_content_covid, cr_ssrn_covid)
+
 
 ```
 
@@ -620,7 +621,7 @@ covid_preprints %>%
   scale_x_date(date_breaks = "7 days",
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
-               limits = c(ymd("2020-01-13"), ymd(sample_date) + 1)) +
+               limits = c(ymd("2020-01-13"), ymd(sample_date))) +
   scale_fill_manual(values = palette) +
   ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 
