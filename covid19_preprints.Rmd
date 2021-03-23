@@ -95,6 +95,8 @@ parseCrossrefPreprints <- function(item) {
     cr_member_id = as.character(item$member),
     identifier = as.character(item$DOI),
     identifier_type = "DOI",
+    #For posted_content, include subtype
+    subtype = if(length(item$subtype)) as.character(item$subtype) else NA_character_,
     title = as.character(item$title[[1]]),
     # For posted-content, use the 'posted' date fields for the relevant date. 
     # For SSRN preprints, use the 'created' date
@@ -168,6 +170,8 @@ cr_posted_content_covid <- cr_posted_content_df %>%
   # Remove those that could not be unambiguously matched or do not seem to be
   # "true" preprints
   filter(!is.na(source)) %>%
+  # Remove publication types posted as 'posted-content' that are not preprints (e.g. conference abstracts, posters)
+  filter(subtype == "preprint") %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
