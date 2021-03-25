@@ -10,7 +10,7 @@ Note that this dataset is not exhaustive, but aims to collate information from s
 
 The process for collecting preprint metadata is documented fully [here](covid19_preprints.md). In general terms, preprint metadata are harvested from four main sources: 
 
-* Crossref (using the [rcrossref](https://github.com/ropensci/rcrossref) package). All records with the `type` field defined as `posted-content` are harvested, as well as records from SSRN (where the `type` field is instead defined as `journal-article`). Preprint records are then matched to known preprint repositories based on `institution`, `publisher` and `group-title` metadata fields.
+* Crossref (using the [rcrossref](https://github.com/ropensci/rcrossref) package). All records with the `type` field defined as `posted-content` and `subtype` field defined as `preprint`are harvested, as well as records from SSRN (where the `type` field is instead defined as `journal-article`). Preprint records are then matched to known preprint repositories based on `institution`, `publisher` and `group-title` metadata fields.
 
 * DataCite (using the [rdatacite](https://github.com/ropensci/rdatacite) package). All records with the `resourceType` field defined as `Preprint` are harvested.  Preprint records are matched to known preprint repositories based on `client` fields.
 
