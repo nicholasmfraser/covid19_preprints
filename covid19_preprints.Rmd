@@ -37,6 +37,7 @@ library(tidyverse)
 
 ```
 
+
 # Set sample date and posted date
 # Retrieve the latest sample date for preprints
 
@@ -772,3 +773,4 @@ covid_preprints %>%
   ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
 
 ```
+
