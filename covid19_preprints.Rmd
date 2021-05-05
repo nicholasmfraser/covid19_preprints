@@ -45,6 +45,8 @@ Note: run update from previous sample date (inclusive) to ensure no records are 
 
 ```{r}
 
+t0 <- Sys.time()
+
 sample_date_until <- Sys.Date()
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
@@ -153,6 +155,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
     institution == "Earth and Space Science Open Archive" ~ "ESSOAR",
     institution == "ScienceOpen" ~ "ScienceOpen",
     publisher == "Research Square" ~ "Research Square",
+    publisher == "Research Square Platform LLC" ~ "Research Square",
     publisher == "MDPI AG" ~ "Preprints.org",
     publisher == "American Chemical Society (ACS)" ~ "ChemRxiv",
     publisher == "JMIR Publications Inc." ~ "JMIR",
@@ -554,6 +557,7 @@ release_date <- Sys.Date()
 # Create metadata as list
 metadata <- list()
 
+metadata$release_date <- release_date
 metadata$sample_date <- sample_date_until
 metadata$posted_date <- posted_date_until
 metadata$url <- "https://github.com/nicholasmfraser/covid19_preprints/blob/master/data/covid19_preprints.csv?raw=true"
