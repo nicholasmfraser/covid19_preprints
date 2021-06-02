@@ -43,8 +43,6 @@ Note: run update from previous sample date (inclusive) to ensure no records are 
 
 ```{r}
 
-t0 <- Sys.time()
-
 sample_date_until <- Sys.Date()
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
