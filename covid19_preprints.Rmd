@@ -423,10 +423,11 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
          identifier = id,
          identifier_type = "arXiv ID",
          posted_date = date(submitted)) %>%
-  filter((posted_date >= as.character(sample_date_from)) & 
+  filter((posted_date >= as.character(sample_date_from2)) & 
            (posted_date <= as.character(sample_date_until))) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   distinct()
+
 
 ```
 
