@@ -43,8 +43,6 @@ Note: run update from previous sample date (inclusive) to ensure no records are 
 
 ```{r}
 
-t0 <- Sys.time()
-
 sample_date_until <- Sys.Date()
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
@@ -425,10 +423,11 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
          identifier = id,
          identifier_type = "arXiv ID",
          posted_date = date(submitted)) %>%
-  filter((posted_date >= as.character(sample_date_from)) & 
+  filter((posted_date >= as.character(sample_date_from2)) & 
            (posted_date <= as.character(sample_date_until))) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   distinct()
+
 
 ```
 
