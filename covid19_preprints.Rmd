@@ -280,6 +280,9 @@ Results can be filtered on date of creation (year only). To retrieve over 1000 r
 
 ```{r message = FALSE, warning = FALSE}
 
+##TO DO: include (not: replace) query for types.resourceTypeGeneral:Preprint as per DataCite metadata schema 4.4 
+
+
 ##specify years to include
 #dc_years <- c("2020", "2021")
 dc_years <- "2021" # for iterative update, only need to use 2021
@@ -418,7 +421,7 @@ ArXiv records are retrieved using the [aRxiv](https://github.com/ropensci/aRxiv)
 
 # For returning details of preprints on arXiv, we can use the aRxiv package and
 # define title and abstract search strings
-ar_covid0 <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2', limit = 10000) %>% 
+ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2', limit = 10000) %>% 
   mutate(source = "arXiv",
          identifier = id,
          identifier_type = "arXiv ID",
@@ -462,7 +465,7 @@ getRepecPreprints <- function(start_date, end_date) {
 
 repec_covid <- getRepecPreprints(sample_date_from,
                                  sample_date_until) %>%
-  bind_rows() %>%  
+  bind_rows() %>% 
   filter(type == "preprint") %>%
   select(-type) %>%
   filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
