@@ -104,7 +104,7 @@ parseCrossrefPostedDate <- function(posted) {
 # Function to parse Crossref preprint data to data frame
 parseCrossrefPreprints <- function(item) {
   tibble(
-    institution = if(length(item$institution$name)) as.character(item$institution$name) else NA_character_,
+    institution = if(length(item$institution[[1]]$name)) as.character(item$institution[[1]]$name) else NA_character_,
     publisher = as.character(item$publisher),
     group_title = if(length(item$`group-title`)) as.character(item$`group-title`) else NA_character_,
     cr_member_id = as.character(item$member),
@@ -419,9 +419,20 @@ ArXiv records are retrieved using the [aRxiv](https://github.com/ropensci/aRxiv)
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-# For returning details of preprints on arXiv, we can use the aRxiv package and
-# define title and abstract search strings
-ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2', limit = 10000) %>% 
+# For returning details of preprints on arXiv, we can use the aRxiv package and define title and abstract search strings
+# Using the default batch size of 100 in often resulted in not all batches being run. Increasing batch size to 1000 appears to solve this. 
+
+ar_search_string <- 'ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2'
+
+ar_expected_results <- arxiv_count(ar_search_string)
+
+ar_covid_df <- arxiv_search(ar_search_string,
+                      limit = 10000,
+                      batchsize = 1000)
+
+ar_returned_results <- nrow(ar_covid_df)
+
+ar_covid_new <- ar_covid_df %>% 
   mutate(source = "arXiv",
          identifier = id,
          identifier_type = "arXiv ID",
@@ -430,6 +441,8 @@ ar_covid <- arxiv_search('ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2
            (posted_date <= as.character(sample_date_until))) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract) %>%
   distinct()
+
+rm(ar_covid_df)
 
 ```
 
@@ -650,8 +663,9 @@ covid_preprints %>%
                date_minor_breaks = "1 day",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date_until))) +
-  scale_fill_manual(values = palette) +
-  ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
+  scale_fill_manual(values = palette)
+
+ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 
 ```
 
@@ -679,8 +693,9 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date_until))) +
-  scale_fill_manual(values = palette) +
-  ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
+  scale_fill_manual(values = palette)
+
+ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 
 ```
 
@@ -710,8 +725,9 @@ covid_preprints %>%
                limits = c(ymd("2020-01-13"),
                           ceiling_date(ymd(sample_date_until), 
                                        "month") - days(1))) +
-  scale_fill_manual(values = palette) +
-  ggsave("outputs/figures/covid19_preprints_month.png", width = 12, height = 6)
+  scale_fill_manual(values = palette)
+
+ggsave("outputs/figures/covid19_preprints_month.png", width = 12, height = 6)
 
 ```
 
@@ -741,8 +757,9 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 week",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-13"), ymd(sample_date_until) + 1)) +
-  scale_fill_manual(values = palette) +
-  ggsave("outputs/figures/covid19_preprints_day_cumulative_by_week.png", width = 12, height = 6)
+  scale_fill_manual(values = palette)
+
+ggsave("outputs/figures/covid19_preprints_day_cumulative_by_week.png", width = 12, height = 6)
 
 ```
 
@@ -772,8 +789,9 @@ covid_preprints %>%
   scale_x_date(date_breaks = "1 month",
                expand = c(0.01, 0),
                limits = c(ymd("2020-01-01"), ymd(sample_date_until) + 1)) +
-  scale_fill_manual(values = palette) +
-  ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
+  scale_fill_manual(values = palette)
+
+ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
 
 ```
 
