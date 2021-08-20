@@ -432,7 +432,7 @@ ar_covid_df <- arxiv_search(ar_search_string,
 
 ar_returned_results <- nrow(ar_covid_df)
 
-ar_covid_new <- ar_covid_df %>% 
+ar_covid <- ar_covid_df %>% 
   mutate(source = "arXiv",
          identifier = id,
          identifier_type = "arXiv ID",
