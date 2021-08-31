@@ -18,6 +18,8 @@ The process for collecting preprint metadata is documented fully [here](covid19_
 
 * RePEc (using the [oai](https://github.com/ropensci/oai) package)). All record types are initally harvested, and subsequently filtered for those with the `Type` field defined as `preprint`. NB RePEc is not a preprint server in itself but an indexing server for multiple individual archives.
 
+Note: No new preprints have been retrieved from RePEc since 2021-07-15. This is likely due a technical issue - we are investigating this.
+
 For all sources, preprints are classified as being related to COVID-19 on the basis of keyword matches in their titles or abstracts (where available). The search string is defined as: `coronavirus OR covid-19 OR sars-cov OR ncov-2019 OR 2019-ncov OR hcov-19 OR sars-2`.
 
 In some cases, multiple preprint metadata records are registered for a single preprint (e.g. ChemRxiv registers a new Crossref record for each new version of a preprint). In these cases, only the earliest posted version is included in this dataset. Depuplication is done based on versioning information in dois as well as on case-insensitive title-matching. Additionally, some preprints are deposited to multiple preprint repositories - in these cases all preprint records are included.
