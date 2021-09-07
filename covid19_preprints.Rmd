@@ -422,6 +422,7 @@ ArXiv records are retrieved using the [aRxiv](https://github.com/ropensci/aRxiv)
 # For returning details of preprints on arXiv, we can use the aRxiv package and define title and abstract search strings
 # Using the default batch size of 100 in often resulted in not all batches being run. Increasing batch size to 1000 appears to solve this. 
 
+
 ar_search_string <- 'ti:coronavirus OR ti:covid OR ti:sars-cov OR ti:ncov-2019 ti:2019-ncov OR ti:hcov-19 OR ti:sars-2 OR abs:coronavirus OR abs:covid OR abs:sars-cov OR abs:ncov-2019 OR abs:2019-ncov OR abs:hcov-19 OR abs:sars-2'
 
 ar_expected_results <- arxiv_count(ar_search_string)
@@ -495,7 +496,7 @@ repec_covid <- getRepecPreprints(sample_date_from,
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 covid_preprints_update <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
-  select(source, identifier, identifier_type, posted_date, title, abstract) 
+  select(source, identifier, identifier_type, posted_date, title, abstract)
 
 #clean titles and abstracts (remove tags, leading string "Abstract", whitespace. Not attempted to remove other html-entities with regex)
 covid_preprints_update <- covid_preprints_update %>%
