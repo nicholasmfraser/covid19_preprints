@@ -16,12 +16,19 @@ Currently, data are harvested from three sources:
 
 A description of the methods for harvesting data sources is provided in each relevant section below.
 
+```{r}
+#set start time
+
+start <- Sys.time()
+```
+
+
 # Load required packages 
 
 ```{r message = FALSE, warning = FALSE}
 
 # clear previous output
-rm(list=ls())
+#rm(list=ls())
 
 library(aRxiv)
 library(jsonlite)
@@ -796,3 +803,8 @@ ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 
 
 ```
 
+```{r}
+#set start time
+
+end <- Sys.time()
+```
