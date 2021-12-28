@@ -50,8 +50,7 @@ Note: run update from previous sample date (inclusive) to ensure no records are 
 
 ```{r}
 
-#sample_date_until <- Sys.Date()
-sample_date_until <- as.Date("2021-12-27")
+sample_date_until <- Sys.Date()
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
 sample_date_from <- fromJSON("data/metadata.json") %>%
