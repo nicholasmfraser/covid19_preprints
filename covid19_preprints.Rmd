@@ -297,19 +297,28 @@ dc_years <- c("2020", "2021")
 dc_types <- c("types.resourceType:Preprint",
               "types.resourceTypeGeneral:Preprint")
 
+#create cartesian product of years and types
+cartesian <- cross2(dc_years, dc_types)
+
+dc_years_cartesian <- map(cartesian, 1) %>% unlist()
+dc_types_cartesian <- map(cartesian, 2) %>% unlist()
+  
 ##initial query to get number of results
 getDataCiteCount <- function(year, type){
   dois <- dc_dois(query = type, 
                 created = year,
                 limit = 1)
   res <- list(
+    query = type,
     year = year,
     total = dois$meta$total)
   return(res)
 }
 
 ##retrieve expected results per year
-dc_expected_results <- map2(dc_years, dc_types, getDataCiteCount) %>%
+dc_expected_results <- map2(dc_years_cartesian, 
+                            dc_types_cartesian, 
+                            getDataCiteCount) %>%
   map("total") %>%
   map_int(sum) %>%
   sum()
@@ -360,7 +369,9 @@ getDataCitePreprints <- function(year, type){
 }
 
 
-dc_preprints <- map2(dc_years, dc_types, getDataCitePreprints) %>%
+dc_preprints <- map2(dc_years_cartesian, 
+                     dc_types_cartesian, 
+                     getDataCitePreprints) %>%
   purrr::flatten()
 
 dc_returned_results <- dc_preprints %>%
