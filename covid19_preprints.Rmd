@@ -16,12 +16,6 @@ Currently, data are harvested from three sources:
 
 A description of the methods for harvesting data sources is provided in each relevant section below.
 
-```{r}
-#set start time
-
-start <- Sys.time()
-```
-
 
 # Load required packages 
 
@@ -235,6 +229,9 @@ An inspection of the published dates of SSRN preprints indicates some abnormalit
 
 getSSRNPublicationDate <- function(doi) {
   
+  #in case requests time out (http error 429), use rate limiting
+  #Sys.sleep(2.5)
+  
   # Base URL for querying
   base_url <- "https://doi.org/"
   url <- paste0(base_url, doi)
@@ -244,7 +241,8 @@ getSSRNPublicationDate <- function(doi) {
     d <- read_html(url) %>%
       html_nodes("meta[name='citation_online_date'][content]") %>%
       html_attr('content')
-    # Sometimes the doi resolves to an empty page - in these cases return NA
+    # Sometimes the doi resolves to an empty page (for papers that  have been removed from SSRN) - in these cases return NA
+    # NAs are also returned when a 429 error (time out) occurs - if this happens, employ rate limiting step in first line of function
     if(length(d)) d else NA
   },
   error = function(e) {
@@ -823,10 +821,4 @@ covid_preprints %>%
 
 ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
 
-```
-
-```{r}
-#set start time
-
-end <- Sys.time()
 ```
