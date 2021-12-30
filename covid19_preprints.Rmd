@@ -16,12 +16,6 @@ Currently, data are harvested from three sources:
 
 A description of the methods for harvesting data sources is provided in each relevant section below.
 
-```{r}
-#set start time
-
-start <- Sys.time()
-```
-
 
 # Load required packages 
 
@@ -120,7 +114,7 @@ parseCrossrefPreprints <- function(item) {
     #For posted_content, include subtype
     subtype = if(length(item$subtype)) as.character(item$subtype) else NA_character_,
     title = as.character(item$title[[1]]),
-    # For posted-content, use the 'posted' date fields for the relevant date. 
+    # For posted-content, use the 'posted' date fields for the relevant date.
     # For SSRN preprints, use the 'created' date
     posted_date = if(length(item$posted)) parseCrossrefPostedDate(item$posted) else parseCrossrefPostedDate(item$created),
     abstract = if(length(item$abstract)) as.character(item$abstract) else NA_character_
@@ -235,6 +229,9 @@ An inspection of the published dates of SSRN preprints indicates some abnormalit
 
 getSSRNPublicationDate <- function(doi) {
   
+  #in case requests time out (http error 429), use rate limiting
+  #Sys.sleep(2.5)
+  
   # Base URL for querying
   base_url <- "https://doi.org/"
   url <- paste0(base_url, doi)
@@ -244,7 +241,8 @@ getSSRNPublicationDate <- function(doi) {
     d <- read_html(url) %>%
       html_nodes("meta[name='citation_online_date'][content]") %>%
       html_attr('content')
-    # Sometimes the doi resolves to an empty page - in these cases return NA
+    # Sometimes the doi resolves to an empty page (for papers that  have been removed from SSRN) - in these cases return NA
+    # NAs are also returned when a 429 error (time out) occurs - if this happens, employ rate limiting step in first line of function
     if(length(d)) d else NA
   },
   error = function(e) {
@@ -281,7 +279,7 @@ rm(cr_posted_content_covid, cr_ssrn_covid)
 
 # DataCite
 
-For harvesting of Datacite metadata the [rdatacite](https://github.com/ropensci/rcrossref) package for R was used. In general, preprints are indexed in Datacite with the 'resourceType' field set to 'Preprint'. This field is not strictly controlled though, so not all preprints will be caught this way. 
+For harvesting of Datacite metadata the [rdatacite](https://github.com/ropensci/rcrossref) package for R was used. In general, preprints are indexed in Datacite with the 'resourceTypeGeneral' field set to 'Preprint'. Prior to DataCite metadata schema 4.4, the field 'resourceType' was used to indicate preprints. This field is not strictly controlled though, so not all preprints will have been caught this way. 
 
 Results can be filtered on date of creation (year only). To retrieve over 1000 results, either pagination or a cursor parameter can be used. Since pagination only allows to retrieve the first 10,000 records, the cursor parameter is used, which allows retrieval of > 10,000 records. Because this method uses output from each iteration (cursor value) as input in the next iteration, currently a for loop is used instead of purrr::map. 
 
@@ -291,35 +289,51 @@ Results can be filtered on date of creation (year only). To retrieve over 1000 r
 
 
 ##specify years to include
-#dc_years <- c("2020", "2021")
-dc_years <- "2021" # for iterative update, only need to use 2021
+dc_years <- c("2020", "2021")
+#dc_years <- "2021" # for iterative update, only need to use 2021
 
+dc_types <- c("types.resourceType:Preprint",
+              "types.resourceTypeGeneral:Preprint")
+
+#create cartesian product of years and types
+cartesian <- cross2(dc_years, dc_types)
+
+dc_years_cartesian <- map(cartesian, 1) %>% unlist()
+dc_types_cartesian <- map(cartesian, 2) %>% unlist()
+  
 ##initial query to get number of results
-getDataCiteCount <- function(year){
-  dois <- dc_dois(query = "types.resourceType:Preprint", 
+getDataCiteCount <- function(year, type){
+  dois <- dc_dois(query = type, 
                 created = year,
                 limit = 1)
   res <- list(
+    query = type,
     year = year,
     total = dois$meta$total)
   return(res)
 }
 
 ##retrieve expected results per year
-dc_expected_results <- map(dc_years, getDataCiteCount) %>%
+dc_expected_results <- map2(dc_years_cartesian, 
+                            dc_types_cartesian, 
+                            getDataCiteCount) %>%
   map("total") %>%
-  map_int(sum)
-  
+  map_int(sum) %>%
+  sum()
+    
 ##define function to execute Datacite iteratively
-getDataCitePreprints <- function(year){
+getDataCitePreprints <- function(year, type){
   
   #initialize output variable as list
   #set initial cursor value = 1
   var <- list()
   cursor_value = 1
   
+  #set encoded type
+  type_encoded <- str_replace(type, ":", "%3A")
+  
   #initial query to get number of results for pagination
-  dois <- dc_dois(query = "types.resourceType:Preprint", 
+  dois <- dc_dois(query = type, 
                 created = year,
                 limit = 1)
   total <- dois$meta$total
@@ -328,7 +342,7 @@ getDataCitePreprints <- function(year){
   
   #Iteratively query DataCite using cursor
   for (i in seq){
-     res <- dc_dois(query = "types.resourceType:Preprint", 
+     res <- dc_dois(query = type, 
                  created = year,
                  limit = 1000,
                  cursor = cursor_value)
@@ -339,7 +353,8 @@ getDataCitePreprints <- function(year){
      str_remove(paste0("https://api.datacite.org/dois\\?created=",
                       year,
                       "&page%5Bcursor%5D=")) %>%
-     str_remove("&page%5Bsize%5D=1000&query=types.resourceType%3APreprint")
+     str_remove(paste0("&page%5Bsize%5D=1000&query=",
+                       type_encoded))
   
     var[[i]] <- res
     
@@ -351,14 +366,16 @@ getDataCitePreprints <- function(year){
   
 }
 
-dc_preprints <- map(dc_years, getDataCitePreprints) %>%
+
+dc_preprints <- map2(dc_years_cartesian, 
+                     dc_types_cartesian, 
+                     getDataCitePreprints) %>%
   purrr::flatten()
 
 dc_returned_results <- dc_preprints %>%
   map_df("data") %>%
   nrow()
 
-  
 ```
 
 Next, relevant preprint metadata fields are parsed from the list format returned in the previous step, to a more manageable data frame. Note that specific preprint repositories are encoded in the field 'client', and abstracts are included in the field 'descriptions'. The resulting columns 'title' and 'descriptions' are list columns and need to be processed further to extract the needed information. 
@@ -389,8 +406,8 @@ parseDataCitePreprints <- function(item) {
                           function(x) parseDataCiteDescription(x)))
 }
 
-dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints)
-
+dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints) %>%
+  distinct()
 
 rm(dc_preprints)
 
@@ -502,7 +519,10 @@ repec_covid <- getRepecPreprints(sample_date_from,
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-covid_preprints_update <- bind_rows(cr_covid, dc_covid, ar_covid, repec_covid) %>%
+covid_preprints_update <- bind_rows(cr_covid, 
+                                    dc_covid, 
+                                    ar_covid, 
+                                    repec_covid) %>%
   select(source, identifier, identifier_type, posted_date, title, abstract)
 
 #clean titles and abstracts (remove tags, leading string "Abstract", whitespace. Not attempted to remove other html-entities with regex)
@@ -619,8 +639,8 @@ palette <- c(pal_1, pal_2)
 
 ```{r message = FALSE, warning = FALSE}
 
-# Minimum number of preprints to be included in graphs (otherwise too many categories/labels is confusing)
-n_min <- 100
+# Minimum number of preprints to be included in graphs (otherwise too many categories/labels is confusing. Aim for 19 servers to include.)
+n_min <- 125
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
@@ -801,10 +821,4 @@ covid_preprints %>%
 
 ggsave("outputs/figures/covid19_preprints_day_cumulative_by_month.png", width = 12, height = 6)
 
-```
-
-```{r}
-#set start time
-
-end <- Sys.time()
 ```
