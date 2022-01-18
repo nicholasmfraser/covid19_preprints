@@ -502,9 +502,7 @@ getRepecPreprints <- function(start_date, end_date) {
   return(repec_preprints)
 }
 
-sample_date_from_repec <- as.Date("2021-11-01")
-
-repec_covid <- getRepecPreprints(sample_date_from_repec,
+repec_covid <- getRepecPreprints(sample_date_from,
                                  sample_date_until) %>%
   bind_rows() %>% 
   filter(type == "preprint") %>%

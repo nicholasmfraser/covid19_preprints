@@ -18,7 +18,7 @@ The process for collecting preprint metadata is documented fully [here](covid19_
 
 * RePEc (using the [oai](https://github.com/ropensci/oai) package)). All record types are initally harvested, and subsequently filtered for those with the `Type` field defined as `preprint`. NB RePEc is not a preprint server in itself but an indexing server for multiple individual archives.
 
-Note: For some time periods (e.g. between 2021-07-15 and 2021-09-08 and from 2021-11-12 onwards) no new preprints got retrieved from RePEc.
+Note: For some time periods (e.g. between 2021-07-15 and 2021-09-08) no new preprints got retrieved from RePEc.
 
 For all sources, preprints are classified as being related to COVID-19 on the basis of keyword matches in their titles or abstracts (where available). The search string is defined as: `coronavirus OR covid-19 OR sars-cov OR ncov-2019 OR 2019-ncov OR hcov-19 OR sars-2`.
 
