@@ -285,13 +285,14 @@ Results can be filtered on date of creation (year only). To retrieve over 1000 r
 
 ```{r message = FALSE, warning = FALSE}
 
-##TO DO: include (not: replace) query for types.resourceTypeGeneral:Preprint as per DataCite metadata schema 4.4 
+ 
 
 
 ##specify years to include
-dc_years <- c("2020", "2021")
-#dc_years <- "2021" # for iterative update, only need to use 2021
+#dc_years <- c("2020", "2021", "2022")
+dc_years <- "2022" # for iterative update, only need to use 2022
 
+###include (not: replace) query for types.resourceTypeGeneral:Preprint as per DataCite metadata schema 4.4
 dc_types <- c("types.resourceType:Preprint",
               "types.resourceTypeGeneral:Preprint")
 
@@ -501,7 +502,9 @@ getRepecPreprints <- function(start_date, end_date) {
   return(repec_preprints)
 }
 
-repec_covid <- getRepecPreprints(sample_date_from,
+sample_date_from_repec <- as.Date("2021-11-01")
+
+repec_covid <- getRepecPreprints(sample_date_from_repec,
                                  sample_date_until) %>%
   bind_rows() %>% 
   filter(type == "preprint") %>%
@@ -518,6 +521,7 @@ repec_covid <- getRepecPreprints(sample_date_from,
 # Create final dataset (bind Crossref, DataCite, arXiv and RePEc data)
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
+
 
 covid_preprints_update <- bind_rows(cr_covid, 
                                     dc_covid, 
