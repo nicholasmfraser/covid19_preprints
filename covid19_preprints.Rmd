@@ -493,8 +493,9 @@ parseRepecPreprints <- function(item) {
 }
 
 # Get a list of all RePEc records posting between two dates
+# Replaced http://oai.repec.openlib.org with http://oai.repec.org as OAI-PMH endpoint
 getRepecPreprints <- function(start_date, end_date) {
-  d <- oai::list_records("http://oai.repec.openlib.org", 
+  d <- oai::list_records("http://oai.repec.org", 
                          from = start_date, 
                          until = end_date, 
                          as = "list")
@@ -502,17 +503,29 @@ getRepecPreprints <- function(start_date, end_date) {
   return(repec_preprints)
 }
 
-repec_covid <- getRepecPreprints(sample_date_from,
-                                 sample_date_until) %>%
-  bind_rows() %>% 
-  filter(type == "preprint") %>%
-  select(-type) %>%
-  filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | 
-         str_detect(abstract, regex(search_string, ignore_case = TRUE))) %>%
-  mutate(posted_date = ymd(posted_date)) %>%
-  # Select only relevant fields with unique values
-  distinct(source, identifier, identifier_type, posted_date, title, abstract)
-
+#catch error if RePEc query does not return results
+repec_covid <- tryCatch(
+    {
+      getRepecPreprints(sample_date_from,
+                       sample_date_until) %>%
+        bind_rows() %>% 
+        filter(type == "preprint") %>%
+        select(-type) %>%
+        filter(str_detect(title, regex(search_string, ignore_case = TRUE)) | str_detect(abstract, regex(search_string, ignore_case = TRUE))) %>%
+        mutate(posted_date = ymd(posted_date)) %>%
+        # Select only relevant fields with unique values
+        distinct(source, identifier, identifier_type, posted_date, title, abstract)
+    },
+    error = function(e){ 
+      data.frame(source = character(),
+                 identifier = character(),
+                 identifier_type = character(),
+                 posted_date = as.Date(character()),
+                 title = character(),
+                 abstract = character()
+                 )
+    }
+)
 
 ```
 
