@@ -285,8 +285,8 @@ Results can be filtered on date of creation (year only). To retrieve over 1000 r
 
 ```{r message = FALSE, warning = FALSE}
 
- 
-
+##TODO Since all of arxiv will be added to DataCite in 2022,
+##limit query to clients rg.rg, figshare.ars and cern.zenodo only
 
 ##specify years to include
 #dc_years <- c("2020", "2021", "2022")

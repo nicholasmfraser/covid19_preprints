@@ -317,6 +317,10 @@ input in the next iteration, currently a for loop is used instead of
 purrr::map.
 
 ``` r
+
+##TODO Since all of arxiv will be added to DataCite in 2022,
+##limit query to clients rg.rg, figshare.ars and cern.zenodo only
+
 ##specify years to include
 #dc_years <- c("2020", "2021", "2022")
 dc_years <- "2022" # for iterative update, only need to use 2022
