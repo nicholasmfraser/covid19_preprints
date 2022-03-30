@@ -308,6 +308,11 @@ metadata schema 4.4, the field ‘resourceType’ was used to indicate
 preprints. This field is not strictly controlled though, so not all
 preprints will have been caught this way.
 
+As of 2022, arXiv also uses DataCite DOIs, with all backfiles receiving
+DataCite DOIs over the course of 2022. To prevent including this arXiv
+backlog, DataCite harvesting is limited to ResearchGate, Zenodo and
+Figshare.
+
 Results can be filtered on date of creation (year only). To retrieve
 over 1000 results, either pagination or a cursor parameter can be used.
 Since pagination only allows to retrieve the first 10,000 records, the
@@ -317,10 +322,6 @@ input in the next iteration, currently a for loop is used instead of
 purrr::map.
 
 ``` r
-
-##TODO Since all of arxiv will be added to DataCite in 2022,
-##limit query to clients rg.rg, figshare.ars and cern.zenodo only
-
 ##specify years to include
 #dc_years <- c("2020", "2021", "2022")
 dc_years <- "2022" # for iterative update, only need to use 2022
@@ -329,17 +330,26 @@ dc_years <- "2022" # for iterative update, only need to use 2022
 dc_types <- c("types.resourceType:Preprint",
               "types.resourceTypeGeneral:Preprint")
 
-#create cartesian product of years and types
-cartesian <- cross2(dc_years, dc_types)
+## limit query to clients rg.rg, figshare.ars and cern.zenodo 
+dc_clients <- c("rg.rg", "cern.zenodo", "figshare.ars")
 
-dc_years_cartesian <- map(cartesian, 1) %>% unlist()
-dc_types_cartesian <- map(cartesian, 2) %>% unlist()
+#create cartesian product of types and clients
+cartesian <- cross3(dc_types, dc_clients, dc_years)
+
+dc_types_cartesian <- map(cartesian, 1) %>% unlist()
+dc_clients_cartesian <- map(cartesian, 2) %>% unlist()
+dc_years_cartesian <- map(cartesian, 3) %>% unlist()
+
+dc_parameters <- list(dc_types_cartesian,
+                      dc_clients_cartesian,
+                      dc_years_cartesian)
   
 ##initial query to get number of results
-getDataCiteCount <- function(year, type){
-  dois <- dc_dois(query = type, 
-                created = year,
-                limit = 1)
+getDataCiteCount <- function(type, client, year){
+  dois <- dc_dois(query = type,
+                  client_id = client,
+                  created = year,
+                  limit = 1)
   res <- list(
     query = type,
     year = year,
@@ -348,15 +358,14 @@ getDataCiteCount <- function(year, type){
 }
 
 ##retrieve expected results per year
-dc_expected_results <- map2(dc_years_cartesian, 
-                            dc_types_cartesian, 
+dc_expected_results <- pmap(dc_parameters,
                             getDataCiteCount) %>%
   map("total") %>%
   map_int(sum) %>%
   sum()
     
 ##define function to execute Datacite iteratively
-getDataCitePreprints <- function(year, type){
+getDataCitePreprints <- function(type, client, year){
   
   #initialize output variable as list
   #set initial cursor value = 1
@@ -367,26 +376,33 @@ getDataCitePreprints <- function(year, type){
   type_encoded <- str_replace(type, ":", "%3A")
   
   #initial query to get number of results for pagination
-  dois <- dc_dois(query = type, 
-                created = year,
-                limit = 1)
+  dois <- dc_dois(query = type,
+                  client_id = client,
+                  created = year,
+                  limit = 1)
   total <- dois$meta$total
   
   seq <- c(1:ceiling(total/1000))
+  seq <- seq[!seq == 0] #catch error when total = 0
   
   #Iteratively query DataCite using cursor
   for (i in seq){
+    
+    Sys.sleep(1) #don't hit the API too hard
      res <- dc_dois(query = type, 
-                 created = year,
-                 limit = 1000,
-                 cursor = cursor_value)
+                    client_id = client,
+                    created = year,
+                    limit = 1000,
+                    cursor = cursor_value)
      #extract new cursor value
      cursor_value <- res$links$"next" %>%
      #escape "?"
      #manually adapt limit if not 1000
-     str_remove(paste0("https://api.datacite.org/dois\\?created=",
-                      year,
-                      "&page%5Bcursor%5D=")) %>%
+     str_remove(paste0("https://api.datacite.org/dois\\?client-id=",
+                       client,
+                       "&created=",
+                        year,
+                        "&page%5Bcursor%5D=")) %>%
      str_remove(paste0("&page%5Bsize%5D=1000&query=",
                        type_encoded))
   
@@ -401,14 +417,17 @@ getDataCitePreprints <- function(year, type){
 }
 
 
-dc_preprints <- map2(dc_years_cartesian, 
-                     dc_types_cartesian, 
+dc_preprints <- pmap(dc_parameters,
                      getDataCitePreprints) %>%
   purrr::flatten()
 
 dc_returned_results <- dc_preprints %>%
   map_df("data") %>%
   nrow()
+
+rm(dc_types, dc_clients, dc_years,
+   dc_types_cartesian, dc_clients_cartesian, dc_years_cartesian,
+   dc_parameters)
 ```
 
 Next, relevant preprint metadata fields are parsed from the list format
@@ -541,6 +560,14 @@ parseRepecPreprints <- function(item) {
 
 # Get a list of all RePEc records posting between two dates
 # Replaced http://oai.repec.openlib.org with http://oai.repec.org as OAI-PMH endpoint
+
+start_date <- sample_date_from
+end_date <- sample_date_until
+
+start_date <- as.Date("2021-11-01")
+end_date <- as.Date("2021-12-01")
+
+
 getRepecPreprints <- function(start_date, end_date) {
   d <- oai::list_records("http://oai.repec.org", 
                          from = start_date, 
@@ -683,7 +710,7 @@ palette <- c(pal_1, pal_2)
 
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many categories/labels is confusing. Aim for 19 servers to include.)
-n_min <- 125
+n_min <- 150
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
