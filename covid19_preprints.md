@@ -254,7 +254,7 @@ directly crawling the SSRN website (using the
 getSSRNPublicationDate <- function(doi) {
   
   #in case requests time out (http error 429), use rate limiting
-  #Sys.sleep(2.5)
+  Sys.sleep(2.5)
   
   # Base URL for querying
   base_url <- "https://doi.org/"
@@ -741,6 +741,7 @@ other_caption <- str_wrap(other_text, width = 150)
 # daily preprint counts
 covid_preprints %>%
   filter(posted_date <= posted_date_until) %>%
+  filter(posted_date >= ymd("2020-01-13")) %>%
   mutate(source = case_when(
     source %in% other ~ "Other*",
     T ~ source
@@ -770,6 +771,7 @@ ggsave("outputs/figures/covid19_preprints_day.png", width = 12, height = 6)
 # Weekly preprint counts
 covid_preprints %>%
   filter(posted_date <= posted_date_until) %>%
+  filter(posted_date >= ymd("2020-01-13")) %>%
   mutate(
     source = case_when(
       source %in% other ~ "Other*",
@@ -802,6 +804,7 @@ ggsave("outputs/figures/covid19_preprints_week.png", width = 12, height = 6)
 # Monthly preprint counts
 covid_preprints %>%
   filter(posted_date <= posted_date_until) %>%
+  filter(posted_date >= ymd("2020-01-13")) %>%
   mutate(
     source = case_when(
       source %in% other ~ "Other*",
@@ -835,6 +838,7 @@ ggsave("outputs/figures/covid19_preprints_month.png", width = 12, height = 6)
 # Cumulative daily preprint counts, by week
 covid_preprints %>%
   filter(posted_date <= posted_date_until) %>%
+  filter(posted_date >= ymd("2020-01-13")) %>%
   mutate(source = case_when(
       source %in% other ~ "Other*",
       T ~ source
@@ -868,6 +872,7 @@ ggsave("outputs/figures/covid19_preprints_day_cumulative_by_week.png", width = 1
 # Cumulative daily preprint counts, by month
 covid_preprints %>%
   filter(posted_date <= posted_date_until) %>%
+  filter(posted_date >= ymd("2020-01-13")) %>%
   mutate(source = case_when(
       source %in% other ~ "Other*",
       T ~ source
