@@ -265,7 +265,7 @@ cr_ssrn_covid <- cr_ssrn_df %>%
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
 rm(cr_ssrn_df)
-  
+
 ```
 
 The datasets derived from "posted-content" and from SSRN are merged to a final Crossref dataset
@@ -416,14 +416,17 @@ parseDataCiteDescription <- function(x) {
 
 parseDataCitePreprints <- function(item) {
   tibble(
-    identifier = item$data$attributes$doi,
-    identifier_type = "DOI",
-    posted_date = as.Date(item$data$attributes$created),
-    client = item$data$relationships$client$data$id,
-    title = map_chr(item$data$attributes$titles, 
-                    ~ str_to_sentence(str_c(.x$title, collapse = "; "))),
+    #identifier = item$data$attributes$doi,
+    #identifier_type = "DOI",
+    #posted_date = as.Date(item$data$attributes$created),
+    #client = item$data$relationships$client$data$id,
+    #title = map_chr(item$data$attributes$titles, 
+    #                ~ str_to_sentence(str_c(.x$title, collapse = "; ")))#,
     abstract = map_chr(item$data$attributes$descriptions, 
-                          function(x) parseDataCiteDescription(x)))
+                          function(x) parseDataCiteDescription(x)),
+    abstract_length = map_int(item$data$attributes$descriptions,
+                              function(x) length(x))
+    )
 }
 
 dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints) %>%
