@@ -416,12 +416,12 @@ parseDataCiteDescription <- function(x) {
 
 parseDataCitePreprints <- function(item) {
   tibble(
-    #identifier = item$data$attributes$doi,
-    #identifier_type = "DOI",
-    #posted_date = as.Date(item$data$attributes$created),
-    #client = item$data$relationships$client$data$id,
-    #title = map_chr(item$data$attributes$titles, 
-    #                ~ str_to_sentence(str_c(.x$title, collapse = "; ")))#,
+    identifier = item$data$attributes$doi,
+    identifier_type = "DOI",
+    posted_date = as.Date(item$data$attributes$created),
+    client = item$data$relationships$client$data$id,
+    title = map_chr(item$data$attributes$titles, 
+                    ~ str_to_sentence(str_c(.x$title, collapse = "; "))),
     abstract = map_chr(item$data$attributes$descriptions, 
                           function(x) parseDataCiteDescription(x)),
     abstract_length = map_int(item$data$attributes$descriptions,
