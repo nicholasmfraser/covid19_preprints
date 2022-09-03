@@ -440,7 +440,9 @@ processed further to extract the needed information.
 ``` r
 parseDataCiteDescription <- function(x) {
   if(length(x) > 0) {
-    if(x$descriptionType == "Abstract") {
+    #descriptionType and description are character vectors, spanning content of description field
+    #testing (2022-08) found that selecting on "Abstract" could be omitted
+    if("Abstract" %in% x$descriptionType) {
       return(str_to_sentence(str_c(x$description, collapse = "; ")))
     } else {
       return(NA_character_)
@@ -459,7 +461,10 @@ parseDataCitePreprints <- function(item) {
     title = map_chr(item$data$attributes$titles, 
                     ~ str_to_sentence(str_c(.x$title, collapse = "; "))),
     abstract = map_chr(item$data$attributes$descriptions, 
-                          function(x) parseDataCiteDescription(x)))
+                          function(x) parseDataCiteDescription(x)),
+    abstract_length = map_int(item$data$attributes$descriptions,
+                              function(x) length(x))
+    )
 }
 
 dc_preprints_df <- map_df(dc_preprints, parseDataCitePreprints) %>%
@@ -620,7 +625,7 @@ covid_preprints_update <- covid_preprints_update %>%
          title = str_squish(title))
 ```
 
-#Remove duplicate records (incl. versions) on same preprint server
+\#Remove duplicate records (incl. versions) on same preprint server
 
 ``` r
 covid_preprints_previous <- read_csv("data/covid19_preprints.csv")
