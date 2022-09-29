@@ -69,7 +69,7 @@ Note that here, the 'low level' `cr_types_` function is used to return all metad
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-cr_expected_results <- cr_types(types = "posted-content",
+wwritecr_expected_results <- cr_types(types = "posted-content",
                                 works = TRUE,
                                 limit = 1,
                                 filter = c(from_index_date = as.character(sample_date_from),
@@ -275,7 +275,6 @@ The datasets derived from "posted-content" and from SSRN are merged to a final C
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
 
 rm(cr_posted_content_covid, cr_ssrn_covid)
-
 
 ```
 
@@ -581,6 +580,9 @@ covid_preprints_update <- covid_preprints_update %>%
   mutate(title = str_remove_all(title, "<.*?>"),
          title = str_squish(title))
 
+
+rm(cr_covid, dc_covid, ar_covid, repec_covid) 
+
 ```
 
 
@@ -632,6 +634,8 @@ covid_preprints <- covid_preprints %>%
 
 covid_preprints %>% 
   write_csv("data/covid19_preprints.csv")
+
+rm(covid_preprints_previous, covid_preprints_previous)
 
 ```
 
