@@ -47,6 +47,8 @@ Note: run update from previous sample date (inclusive) to ensure no records are 
 ```{r}
 
 sample_date_until <- Sys.Date()
+#sample_data_until <- as.Date("2022-11-03")
+
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
 sample_date_from <- fromJSON("data/metadata.json") %>%
@@ -69,7 +71,7 @@ Note that here, the 'low level' `cr_types_` function is used to return all metad
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-wwritecr_expected_results <- cr_types(types = "posted-content",
+cr_expected_results <- cr_types(types = "posted-content",
                                 works = TRUE,
                                 limit = 1,
                                 filter = c(from_index_date = as.character(sample_date_from),
@@ -196,6 +198,7 @@ cr_posted_content_covid <- cr_posted_content_df %>%
 
 rm(cr_posted_content_df)
 
+
 ```
 
 A side effect of the above procedure is that some preprint servers, most notably SSRN, instead index their content with the 'type' set to 'journal-article', and are thus not included when querying only for 'posted-content' types. Metadata of SSRN preprints are thus instead harvested using the `cr_works_` function for the ISSN of SSRN (1556-5068).
@@ -222,6 +225,7 @@ cr_ssrn_returned_results <- map_dbl(cr_ssrn, ~ length(.x$message$items)) %>% sum
 cr_ssrn_df <- map_df(cr_ssrn, ~ map_dfr(.x$message$items, parseCrossrefPreprints))
 
 rm(cr_ssrn)
+
 
 ```
 
@@ -392,7 +396,7 @@ dc_returned_results <- dc_preprints %>%
   nrow()
 
 rm(dc_types, dc_clients, dc_years,
-   dc_types_cartesian, dc_clients_cartesian, dc_years_cartesian,
+   dc_types_cartesian, dc_clients_cartesian, dc_years_cartesian, cartesian,
    dc_parameters)
 
 ```
@@ -635,7 +639,8 @@ covid_preprints <- covid_preprints %>%
 covid_preprints %>% 
   write_csv("data/covid19_preprints.csv")
 
-rm(covid_preprints_previous, covid_preprints_previous)
+rm(covid_preprints_previous, covid_preprints_update)
+ 
 
 ```
 
