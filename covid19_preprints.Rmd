@@ -78,6 +78,7 @@ cr_expected_results <- cr_types(types = "posted-content",
                                            until_index_date = as.character(sample_date_until))
                                 )$meta$total_results
 
+
 # Query posted content
 cr_posted_content <- cr_types_(types = "posted-content",
                                works = TRUE, 
@@ -198,7 +199,6 @@ cr_posted_content_covid <- cr_posted_content_df %>%
 
 rm(cr_posted_content_df)
 
-
 ```
 
 A side effect of the above procedure is that some preprint servers, most notably SSRN, instead index their content with the 'type' set to 'journal-article', and are thus not included when querying only for 'posted-content' types. Metadata of SSRN preprints are thus instead harvested using the `cr_works_` function for the ISSN of SSRN (1556-5068).
@@ -259,9 +259,23 @@ getSSRNPublicationDate <- function(doi) {
 }
 
 # Create the final SSRN dataset. Deduplication of versions is done at a later stage.
+
 cr_ssrn_covid <- cr_ssrn_df %>%  
   # Filter COVID-19 related preprints. SSRN metadata does not contain abstracts
-  filter(str_detect(title, regex(search_string, ignore_case = TRUE))) %>%
+  filter(str_detect(title, regex(search_string, ignore_case = TRUE))) 
+
+#Filter on records not already in dataset (to reduce the number of records for which to crawl the SSRN website)
+
+covid_preprints_previous <- read_csv("data/covid19_preprints.csv") %>%
+  pull(identifier)
+
+cr_ssrn_covid <- cr_ssrn_covid %>%
+  filter(!identifier %in% covid_preprints_previous)
+  
+rm(covid_preprints_previous)
+
+#crawl SSRN to retrieve posted dates
+cr_ssrn_covid <- cr_ssrn_covid %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
   mutate(posted_date = ymd(map_chr(identifier, getSSRNPublicationDate)),
          source = "SSRN") %>%
@@ -277,6 +291,8 @@ The datasets derived from "posted-content" and from SSRN are merged to a final C
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
+
+write_csv(cr_covid, "cr_covid.csv")
 
 rm(cr_posted_content_covid, cr_ssrn_covid)
 
@@ -525,10 +541,6 @@ parseRepecPreprints <- function(item) {
 
 start_date <- sample_date_from
 end_date <- sample_date_until
-
-start_date <- as.Date("2021-11-01")
-end_date <- as.Date("2021-12-01")
-
 
 getRepecPreprints <- function(start_date, end_date) {
   d <- oai::list_records("http://oai.repec.org", 
