@@ -45,6 +45,8 @@ Deduplicate final dataset to filter out records that are sampled twice.
 
 ``` r
 sample_date_until <- Sys.Date()
+#sample_data_until <- as.Date("2022-11-03")
+
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
 sample_date_from <- fromJSON("data/metadata.json") %>%
@@ -87,6 +89,7 @@ cr_expected_results <- cr_types(types = "posted-content",
                                 filter = c(from_index_date = as.character(sample_date_from),
                                            until_index_date = as.character(sample_date_until))
                                 )$meta$total_results
+
 
 # Query posted content
 cr_posted_content <- cr_types_(types = "posted-content",
@@ -254,7 +257,7 @@ directly crawling the SSRN website (using the
 getSSRNPublicationDate <- function(doi) {
   
   #in case requests time out (http error 429), use rate limiting
-  Sys.sleep(2.5)
+  Sys.sleep(10)
   
   # Base URL for querying
   base_url <- "https://doi.org/"
@@ -277,9 +280,23 @@ getSSRNPublicationDate <- function(doi) {
 }
 
 # Create the final SSRN dataset. Deduplication of versions is done at a later stage.
+
 cr_ssrn_covid <- cr_ssrn_df %>%  
   # Filter COVID-19 related preprints. SSRN metadata does not contain abstracts
-  filter(str_detect(title, regex(search_string, ignore_case = TRUE))) %>%
+  filter(str_detect(title, regex(search_string, ignore_case = TRUE))) 
+
+#Filter on records not already in dataset (to reduce the number of records for which to crawl the SSRN website)
+
+covid_preprints_previous <- read_csv("data/covid19_preprints.csv") %>%
+  pull(identifier)
+
+cr_ssrn_covid <- cr_ssrn_covid %>%
+  filter(!identifier %in% covid_preprints_previous)
+  
+rm(covid_preprints_previous)
+
+#crawl SSRN to retrieve posted dates
+cr_ssrn_covid <- cr_ssrn_covid %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
   mutate(posted_date = ymd(map_chr(identifier, getSSRNPublicationDate)),
          source = "SSRN") %>%
@@ -426,7 +443,7 @@ dc_returned_results <- dc_preprints %>%
   nrow()
 
 rm(dc_types, dc_clients, dc_years,
-   dc_types_cartesian, dc_clients_cartesian, dc_years_cartesian,
+   dc_types_cartesian, dc_clients_cartesian, dc_years_cartesian, cartesian,
    dc_parameters)
 ```
 
@@ -569,10 +586,6 @@ parseRepecPreprints <- function(item) {
 start_date <- sample_date_from
 end_date <- sample_date_until
 
-start_date <- as.Date("2021-11-01")
-end_date <- as.Date("2021-12-01")
-
-
 getRepecPreprints <- function(start_date, end_date) {
   d <- oai::list_records("http://oai.repec.org", 
                          from = start_date, 
@@ -623,6 +636,9 @@ covid_preprints_update <- covid_preprints_update %>%
          abstract = str_squish(abstract)) %>%
   mutate(title = str_remove_all(title, "<.*?>"),
          title = str_squish(title))
+
+
+rm(cr_covid, dc_covid, ar_covid, repec_covid) 
 ```
 
 \#Remove duplicate records (incl. versions) on same preprint server
@@ -672,6 +688,8 @@ covid_preprints <- covid_preprints %>%
 
 covid_preprints %>% 
   write_csv("data/covid19_preprints.csv")
+
+rm(covid_preprints_previous, covid_preprints_update)
 ```
 
 # Create metadata file (json file with sample date and release date)
@@ -715,7 +733,7 @@ palette <- c(pal_1, pal_2)
 
 ``` r
 # Minimum number of preprints to be included in graphs (otherwise too many categories/labels is confusing. Aim for 19 servers to include.)
-n_min <- 150
+n_min <- 175
 
 # Repositories with < min preprints
 other <- covid_preprints %>%

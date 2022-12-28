@@ -236,7 +236,7 @@ An inspection of the published dates of SSRN preprints indicates some abnormalit
 getSSRNPublicationDate <- function(doi) {
   
   #in case requests time out (http error 429), use rate limiting
-  Sys.sleep(2.5)
+  Sys.sleep(10)
   
   # Base URL for querying
   base_url <- "https://doi.org/"
@@ -291,8 +291,6 @@ The datasets derived from "posted-content" and from SSRN are merged to a final C
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
 cr_covid <- bind_rows(cr_posted_content_covid, cr_ssrn_covid)
-
-write_csv(cr_covid, "cr_covid.csv")
 
 rm(cr_posted_content_covid, cr_ssrn_covid)
 
@@ -581,7 +579,6 @@ repec_covid <- tryCatch(
 
 ```{r message = FALSE, warning = FALSE, cache = TRUE}
 
-
 covid_preprints_update <- bind_rows(cr_covid, 
                                     dc_covid, 
                                     ar_covid, 
@@ -709,7 +706,7 @@ palette <- c(pal_1, pal_2)
 ```{r message = FALSE, warning = FALSE}
 
 # Minimum number of preprints to be included in graphs (otherwise too many categories/labels is confusing. Aim for 19 servers to include.)
-n_min <- 150
+n_min <- 175
 
 # Repositories with < min preprints
 other <- covid_preprints %>%
