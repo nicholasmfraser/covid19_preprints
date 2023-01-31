@@ -308,7 +308,7 @@ Results can be filtered on date of creation (year only). To retrieve over 1000 r
 
 ##specify years to include
 #dc_years <- c("2020", "2021", "2022")
-dc_years <- "2022" # for iterative update, only need to use 2022
+dc_years <- c("2022", "2023") # for iterative update, only need to use 2023 from next update onwards
 
 ###include (not: replace) query for types.resourceTypeGeneral:Preprint as per DataCite metadata schema 4.4
 dc_types <- c("types.resourceType:Preprint",
