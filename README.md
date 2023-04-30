@@ -4,6 +4,8 @@ This repository contains code used to extract details of preprints related to CO
 
 Preprint data is updated monthly by collecting preprints added or updated since the previous sample date. Details of the current release can be found in `data/metadata.json`, where `release_date` refers to the date on which the dataset was released, `sample_date` the date on which data was collected, and `posted_date` the cut-off point for preprints to be included in the accompanying visualizations based on their posting date.
 
+From March 2023 onwards, the dataset is archived separately on figshare: [https://doi.org/10.6084/m9.figshare.22707346](https://doi.org/10.6084/m9.figshare.12033672).
+
 A citable version of this repository is also available on figshare, here: [https://doi.org/10.6084/m9.figshare.12033672](https://doi.org/10.6084/m9.figshare.12033672).
 
 Note that this dataset is not exhaustive, but aims to collate information from some of the main sources of preprint metadata.
