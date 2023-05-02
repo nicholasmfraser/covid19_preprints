@@ -47,7 +47,7 @@ Note: run update from previous sample date (inclusive) to ensure no records are 
 ```{r}
 
 sample_date_until <- Sys.Date()
-#sample_data_until <- as.Date("2022-11-03")
+#sample_data_until <- as.Date("2023-04-30")
 
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
@@ -276,6 +276,7 @@ rm(covid_preprints_previous)
 
 #crawl SSRN to retrieve posted dates
 cr_ssrn_covid <- cr_ssrn_covid %>%
+  filter(is.na(posted_date)) %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
   mutate(posted_date = ymd(map_chr(identifier, getSSRNPublicationDate)),
          source = "SSRN") %>%
@@ -283,6 +284,7 @@ cr_ssrn_covid <- cr_ssrn_covid %>%
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
 rm(cr_ssrn_df)
+
 
 ```
 
@@ -475,7 +477,7 @@ dc_covid <- dc_preprints_df %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
-rm(dc_preprints_df)
+rrm(dc_preprints_df)
 
 ```
 
