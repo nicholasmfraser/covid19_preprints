@@ -45,7 +45,7 @@ Deduplicate final dataset to filter out records that are sampled twice.
 
 ``` r
 sample_date_until <- Sys.Date()
-#sample_data_until <- as.Date("2022-11-03")
+#sample_data_until <- as.Date("2023-04-30")
 
 posted_date_until <-floor_date(sample_date_until, "week") #set to last Sunday prior to sample date
 
@@ -341,7 +341,7 @@ purrr::map.
 ``` r
 ##specify years to include
 #dc_years <- c("2020", "2021", "2022")
-dc_years <- "2022" # for iterative update, only need to use 2022
+dc_years <- c("2023") # for iterative update, only need to use 2023 from next update onwards
 
 ###include (not: replace) query for types.resourceTypeGeneral:Preprint as per DataCite metadata schema 4.4
 dc_types <- c("types.resourceType:Preprint",
@@ -704,7 +704,8 @@ metadata <- list()
 metadata$release_date <- release_date
 metadata$sample_date <- sample_date_until
 metadata$posted_date <- posted_date_until
-metadata$url <- "https://github.com/nicholasmfraser/covid19_preprints/blob/master/data/covid19_preprints.csv?raw=true"
+metadata$url_data <- "https://doi.org/10.6084/m9.figshare.22707346"
+metadata$url_repository <- "https://github.com/nicholasmfraser/covid19_preprints"
 
 # Save as json file
 metadata_json <- toJSON(metadata, pretty = TRUE, auto_unbox = TRUE)
