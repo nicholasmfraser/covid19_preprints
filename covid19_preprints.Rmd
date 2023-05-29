@@ -276,7 +276,6 @@ rm(covid_preprints_previous)
 
 #crawl SSRN to retrieve posted dates
 cr_ssrn_covid <- cr_ssrn_covid %>%
-  filter(is.na(posted_date)) %>%
   # Retrieve 'real' posted dates from the SSRN website. Warning: slow
   mutate(posted_date = ymd(map_chr(identifier, getSSRNPublicationDate)),
          source = "SSRN") %>%
@@ -477,7 +476,7 @@ dc_covid <- dc_preprints_df %>%
   # Select only relevant fields with unique values
   distinct(source, identifier, identifier_type, posted_date, title, abstract)
 
-rrm(dc_preprints_df)
+rm(dc_preprints_df)
 
 ```
 
