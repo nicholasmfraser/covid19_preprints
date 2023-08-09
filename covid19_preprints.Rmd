@@ -699,9 +699,11 @@ theme_set(theme_minimal() +
                                       margin = margin(20, 0, 0, 0))))
 
 # Create a nice color palette
-pal_1 <- colorspace::lighten(pals::tol(n = 10), amount = 0.2)
-pal_2 <- colorspace::lighten(pals::tol(n = 10), amount = 0.4)
+pal_1 <- colorspace::lighten(pals::tol(n = 12), amount = 0.2)
+pal_2 <- colorspace::lighten(pals::tol(n = 12), amount = 0.4)
+
 palette <- c(pal_1, pal_2)
+
 
 ```
 
