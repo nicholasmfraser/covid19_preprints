@@ -284,7 +284,6 @@ cr_ssrn_covid <- cr_ssrn_covid %>%
 
 rm(cr_ssrn_df)
 
-
 ```
 
 The datasets derived from "posted-content" and from SSRN are merged to a final Crossref dataset

@@ -245,7 +245,7 @@ rm(cr_ssrn)
 An inspection of the published dates of SSRN preprints indicates some
 abnormalities, e.g. on 24th March 2020, more than 5000 SSRN preprints
 were published according to dates from Crossref - the next highest day
-only has \~250 published preprints. Manual inspection of a small number
+only has ~250 published preprints. Manual inspection of a small number
 suggests that the published date in Crossref does not correspond well to
 the actual published date according to the SSRN website. Thus, we can
 subset our set of SSRN preprints to those related to COVID-19 (to reduce
